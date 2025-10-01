@@ -291,9 +291,11 @@ def pseudobulk(
     groups: list | None = None,
     key_added: str = 'results',
     layer: str = "counts",
-    top_volcano: int = 20,
+    # top_volcano: int = 20,
     min_cells: int = 5,
     min_counts: int = 100,
+    min_count_gene: int = 10, 
+    min_total_count_gene: int = 15,
     # min_count: int = 5, 
     # min_total_count: int = 5,
     # sign_thr: float = 0.05,
@@ -415,12 +417,16 @@ def pseudobulk(
     for test, ref in pairwise:
         print(f'Start pseudobulk by comparing {test} versus {ref} in the condition {condition}.')
         for ct in tqdm(groups, total=len(groups), desc=groups_key):
-            # print(ct)
             sub = pdata[(pdata.obs[groups_key] == ct) & (pdata.obs[condition].isin([ref, test]))].copy()
             # print(sub.obs[condition].unique())
             
             if sub.n_obs > 1: 
-                dc.pp.filter_by_expr(sub, group=condition, min_count=5, min_total_count=5)
+                dc.pp.filter_by_expr(
+                    sub, 
+                    group=condition, 
+                    min_count=min_count_gene, 
+                    min_total_count=min_total_count_gene
+                )
                 # sub = sub[:, genes].copy()
                 
                 # if (sub.n_vars > 0) & (len(sub.obs[condition].unique().tolist()) > 1):
@@ -479,8 +485,8 @@ def pseudobulk(
 
                         df_total = pd.concat([df_total, results_df.reset_index(names="gene")])
                         # df_total = pd.concat([df_total, results_df.reset_index()])
-                        print("============================================================================")
-                        print("============================================================================")
+                        # print("============================================================================")
+                        # print("============================================================================")
                         # if plots :
                         #     if len(signs.index.tolist()) > 0:
                         #         fig, axs = plt.subplots(1, 2, figsize=figsize)
@@ -498,8 +504,8 @@ def pseudobulk(
 
     adata.uns["scispy"][key_added] = df_total.reset_index(drop=True)
     # adata.uns["scispy"]["pseudobulk"][key_added] ???
-    print(f'results stored in adata.uns["scispy"][{key_added}]')
-    print(f'--> scis.pl.plot_pseudobulk(adata, key={key_added})')
+    # print(f'results stored in adata.uns["scispy"][{key_added}]')
+    # print(f'--> scis.pl.plot_pseudobulk(adata, key={key_added})')
 
 
 # def pseudobulk(
@@ -912,6 +918,7 @@ def scis_prop(
             ax.set(ylabel="")
             ax.set_title(str(n))
             plt.tight_layout()
+
 
 def fromAxisMedialToDf(
     data: sd.SpatialData | pd.DataFrame | gpd.GeoDataFrame, # NEW choice of multiple input, BEFORE only sdata

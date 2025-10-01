@@ -10,7 +10,8 @@ from .basic import (
     # plot_pseudobulk,
     stripPlotDE,
     barplotDE,
-    plot_DE
+    plot_DE,
+    maplot
 )
 
 from ._shapes import (
@@ -35,5 +36,6 @@ __all__ = [
     "barplotDE",
     "plot_DE",
     "plot_shapes",
-    "density_count_genes"
+    "density_count_genes",
+    "maplot"
 ]
