@@ -116,8 +116,8 @@ def density_count_genes(
         print('histo')
         heatmap, xx, yy = _count_dens(x, y, xmax, xmin, ymax, ymin, bin_size_um )
         vmax = np.percentile(heatmap, pct_max)
-    vmax=heatmap.max()
-    print(vmax)
+    # vmax=heatmap.max()
+    # print(vmax)
     if clip_outside:
         grid_points = gpd.GeoSeries(gpd.points_from_xy(xx.ravel(), yy.ravel()))
         mask = grid_points.within(polygon).to_numpy().reshape(heatmap.shape)
