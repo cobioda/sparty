@@ -19,18 +19,20 @@ urls.Documentation = "https://scispy.readthedocs.io/"
 urls.Source = "https://github.com/cobioda/scispy"
 urls.Home-page = "https://github.com/cobioda/scispy"
 dependencies = [
-    "anndata",
+    "anndata >= 0.11.3",
     "scanpy >= 1.9.8",
     "botocore == 1.34.19",
-    "spatialdata >= 0.2.6",
+    "spatialdata >= 0.5.0",
     "spatialdata-io >= 0.1.6",
     "spatialdata-plot >= 0.2.8",
     "scvi-tools",
     #"sopa",
     #"novae",
     "pydeseq2",
-    "decoupler",
+    "squidpy >= 1.6.5",
+    "decoupler >= 2.1.1",
     "statannotations",
+    "PyComplexHeatmap >= 1.8.2",
     "adjustText",
     # for debug logging (referenced from the issue template)
     "session-info"

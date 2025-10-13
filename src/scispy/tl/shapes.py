@@ -8,7 +8,7 @@ import shapely
 import numpy as np
 import anndata as ad
 import networkx as nx 
-import squidpy as sq 
+# import squidpy as sq 
 from ..tl.alpha_shape import alpha_shape_optimal
 # from shapely.ops import cascaded_union
 # from shapely.geometry import Polygon
