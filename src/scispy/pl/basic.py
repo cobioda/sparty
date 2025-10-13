@@ -14,6 +14,37 @@ import decoupler as dc
 import matplotlib.gridspec as gridspec
 import PyComplexHeatmap as pch
 
+
+def plot_mecr(
+        adata: ad.AnnData,
+        g1: str, 
+        g2: str,
+        groupby: str = None,
+        layer: str = 'counts',
+        color: 'str' = 'black',
+        figsize: tuple = (5,5),
+):
+    c1 = adata[:,g1].layers[layer].toarray()
+    c2 = adata[:,g2].layers[layer].toarray()
+
+    mecr = ((c1 > 0) & (c2 > 0)).sum() / ((c1 > 0) | (c2 > 0)).sum()
+
+    if groupby:
+        df = adata.obs[groupby].copy()
+
+    plt.figure(figsize=figsize)
+    plt.scatter(
+        x=c1,
+        y=c2, 
+        s=2,
+        c=color,
+    )
+    plt.xlabel(g1)
+    plt.ylabel(g2)
+    plt.title(f'MECR score between {g1} - {g2} : {round(mecr, 3)}')
+    plt.show()
+
+
 def plot_shapes(
     sdata: sd.SpatialData,
     group_lst: tuple = None,  # the cell types to consider
@@ -854,161 +885,317 @@ def maplot(
     plt.show()
 
 
-def heatmap_volcano(
-    adata,
-    sub_cell,
-    signs,
+def extract_sample(name, samples):
+    for s in samples:
+        if name.startswith(s):
+            return s
+    return None  
+
+    
+def filter_genes(df, thres):
+    padj_mask = df["padj"] <= thres["padj"]
+    lfc_mask = np.abs(df["log2FoldChange"]) >= thres["log2FoldChange"]
+    base_mask = df["baseMean"] >= thres["baseMean"]
+    pct_mask = (df["pct_1"] >= thres["pct"]) | (df["pct_2"] >= thres["pct"])
+
+    mask = padj_mask & lfc_mask & base_mask & pct_mask
+    return df.loc[mask, "gene"].unique()
+
+
+def plot_heatmap(
+    df_plot,
+    df_colors,
     colors,
-    title,
-    thr_stat=0.5,
-    thr_sign = 0.05,
-    top=5,
-    figsize=(20, 10),
+    show_rownames: bool = True,
+    col_dendrogram: bool =True,
+    row_dendrogram: bool =True,
+    row_cluster: bool =True,
+    col_cluster: bool =True,
+    cmap="bwr",
 ):
-    if len(signs) >1 : 
-        row_dendrogram =True
-        col_dendrogram=True
-        row_cluster=True
-        col_cluster=True
-    else:
-        row_dendrogram=False
-        col_dendrogram=False
-        row_cluster=False
-        col_cluster=False
-
-    df_test = pd.DataFrame(adata[:,signs].X.T, index=adata[:,signs].var_names, columns=adata.obs_names) 
-    df_test = df_test.apply(pd.to_numeric, errors="coerce")
-
-    fig = plt.figure(figsize=figsize)
-    gs = gridspec.GridSpec(nrows=1, ncols=2, wspace=0.4, width_ratios=[1.2, 0.9])
-
-    ax1 = fig.add_subplot(gs[0])
-    col_ha = pch.HeatmapAnnotation(df=adata.obs, 
-                                colors=colors,
-                                legend=True,
-                                legend_gap=5,
-                                hgap=0.5,
-                                axis=1)
-    cluster = pch.ClusterMapPlotter(data=df_test,
-                                top_annotation=col_ha,
-                                # col_split=adata.obs[condition],
-                                # col_split_gap=0.8,
-                                label='values',
-                                col_dendrogram=col_dendrogram,
-                                row_dendrogram=row_dendrogram,
-                                row_cluster=row_cluster,
-                                col_cluster=col_cluster,
-                                show_rownames=True,
-                                show_colnames=True,
-                                verbose=0,
-                                legend_gap=5, 
-                                cmap="bwr",  
-                                plot =False,
-                                plot_legend=False,
-                                center=0, 
-                                xticklabels_kws={'labelrotation':-90}) 
-    cluster.plot(ax=ax1, subplot_spec = gs[0])
-    cluster.plot_legends(ax=ax1)
-    ax1.set_title('Heatmap')
-
-    ax2 = fig.add_subplot(gs[1])
-    dc.pl.volcano(
-        sub_cell, 
-        # figsize=(5,5),
-        x="log2FoldChange", 
-        y="padj", 
-        ax=ax2,
-        thr_stat=thr_stat, 
-        thr_sign=thr_sign, 
-        top=top
-    )
-    ax2.set_title('Volcano plot')
-
-    fig.suptitle(title, fontsize=18) #, y=0.99)
-    plt.show()
-
+    col_ha = pch.HeatmapAnnotation(
+        df=df_colors,
+        colors=colors,
+        legend=True,
+        legend_gap=5,
+        hgap=0.5,
+        axis=1)
+                                        
+    cluster = pch.ClusterMapPlotter(
+        data=df_plot,
+        top_annotation=col_ha,
+        # col_split=adata.obs[condition],
+        # col_split_gap=0.8,
+        label='values',
+        col_dendrogram=col_dendrogram,
+        row_dendrogram=row_dendrogram,
+        row_cluster=row_cluster,
+        col_cluster=col_cluster,
+        show_rownames=show_rownames,
+        show_colnames=True,
+        verbose=0,
+        legend_vpad=25,
+        cmap=cmap,  
+        plot =False,
+        plot_legend=False,
+        center=0, 
+        xticklabels_kws={'labelrotation':90}) 
+    return cluster
 
 
 def plot_DE(
     adata: ad.AnnData,
     colors: dict,
-    # replicate = 'condition'
-    condition = 'condition',
+    signs_thres: dict = {
+        'padj': 0.05,
+        'log2FoldChange': 0.5,
+        'baseMean': 50.0,
+        'pct': 0.0
+    },
+    groups_col: str | None = None,
+    replicate: str | None = None,
     cell_type: str = 'cell_type',
-    top_volcano: int = 5,
-    thr_stat: float = 0.5, 
-    thr_sign: float = 0.05,
-    min_pct: float = 0.3,
-    min_base_mean: float = 50.0,
-    fill_na: str = 'grey',
+    groups: list | None = None,
+    # fill_na: str = 'grey',
+    # condition = 'condition',
     cmap: str ='bwr',
-    # col_cluster: bool = False,
+    top_volcano: int = 10,
+    figsize: tuple =  (20, 10),
 ):
-    """Heatmap and volcano plot from pseudobulk analysis
-
-    Parameters
-    ----------
-    adata
-        anndata object
-    colors
-        dict of colors for each metadata to plot in the heatmap
-    condition
-        column that refers to the condition comparison. Default, set to condition
-    cell_type
-        column that refers to the celltype column. Default, set to cell_type  
-    key
-        key in adata.uns['scispy'] storing the results to plot
-    thr_sign
-        p adjusted to be significant
-    thr_stat
-        log2FoldChange to be significant
-    min_pct
-        min pct.1 or pct.2 to be significant
-    fill_na
-        if colors not provide for one condition, put it in grey by default
-    """
-    results = adata.uns['scispy']['results']
-    matrix = adata.uns["scispy"]["matrice"]
-    celltypes = results[cell_type].unique()
+    df = adata.uns['scispy']['results'].copy()
+    mtx = adata.uns["scispy"]["matrice"].copy()
     
-    for cell in celltypes:
-        sub_mtx = matrix.loc[:,matrix.columns.str.contains(f'_{cell}_')].T
-        adata = ad.AnnData(sub_mtx)
-        adata.obs[['celltype','condition']] = adata.obs_names.str.split('_', expand=True).to_frame(index=False)[[2,3]].values
-        # print(cell)
-        sub_cell = results[results[cell_type] == cell]
-        sub_cell.index = sub_cell['gene']
+    if not replicate:
+        replicate = adata.uns['scispy']['params']['replicate']
+    if not groups_col:
+        groups_key, condition = adata.uns['scispy']['params']['groups_col']
+    if not groups:
+        groups = df[cell_type].unique().tolist()
 
-        signs = sub_cell.loc[
-            (sub_cell['padj'] <= thr_sign) & 
-            (np.abs(sub_cell['log2FoldChange']) >= thr_stat) &
-            (sub_cell['baseMean'] >=min_base_mean) & 
-            ((sub_cell['pct_1'] >= min_pct) | (sub_cell['pct_2']  >= min_pct)), 'gene'].unique()
-    
-        col_colors = pd.DataFrame(adata.obs[condition].map(colors[condition]))
-        col_colors['celltype'] = "Blue"
-        col_colors = col_colors.fillna(fill_na)
-        # row_colors #= row_colors[['celltype', 'condition']] 
+    samples = adata.obs[replicate].unique().to_list()
 
-        if len(signs) > 0:        
+    for cell in groups:
+        print(cell)
+        sub_df = df[df[cell_type] == cell]
+        sub_df.index = sub_df['gene']
+        signs = filter_genes(sub_df, signs_thres)
+
+        if len(signs) > 1:
+            sub_mtx = mtx.loc[signs, mtx.columns.str.contains(f'_{cell}_')].T
+            adata = ad.AnnData(sub_mtx)
+            adata.obs["sample"] = adata.obs.index.map(lambda x: extract_sample(x, samples))
+            adata.obs[['celltype','condition']] = adata.obs_names.str.split('_', expand=True).to_frame(index=False)[[2,3]].values
+            
             sc.pp.normalize_total(adata)
             sc.pp.log1p(adata)
             sc.pp.scale(adata, max_value=10)
 
-            # df_test = pd.DataFrame(adata[:,signs].X.T, index=adata[:,signs].var_names, columns=adata.obs_names) 
-            # df_test = df_test.apply(pd.to_numeric, errors="coerce")
+            df_plot = pd.DataFrame(adata.X.T, index=adata.var_names, columns=adata.obs['sample']) 
+            df_plot = df_plot.apply(pd.to_numeric, errors="coerce")
 
-            heatmap_volcano(
-                adata,
-                sub_cell,
-                signs=signs,
-                colors=colors,
-                title = cell,
-                figsize=(20, 10),
-                thr_stat = thr_stat, 
-                thr_sign=thr_sign,
-                top=top_volcano,
+            df_colors = pd.DataFrame(adata.obs[list(colors.keys())].values, 
+                        index=adata.obs['sample'],
+                        columns=list(colors.keys())) 
+            
+            if len(signs) <= 50:
+                show_rownames = True
+            else:
+                show_rownames = False
+
+            # PLOT
+            fig = plt.figure(figsize=figsize)
+            gs = gridspec.GridSpec(nrows=1, ncols=2, wspace=0.5, width_ratios=[1, 1])
+
+            ax1 = fig.add_subplot(gs[0])
+            cluster = plot_heatmap(
+                    df_plot,
+                    df_colors,
+                    colors,
+                    show_rownames=show_rownames,
+                    cmap=cmap
+                )
+            cluster.plot(ax=ax1, subplot_spec = gs[0])
+            cluster.plot_legends(ax=ax1)
+            ax1.set_title('Heatmap')
+
+            ax2 = fig.add_subplot(gs[1])
+            dc.pl.volcano(
+                sub_df, 
+                # figsize=(5,5),
+                x="log2FoldChange", 
+                y="padj", 
+                ax=ax2,
+                thr_stat=signs_thres['log2FoldChange'], 
+                thr_sign=signs_thres['padj'], 
+                top=top_volcano
             )
+            ax2.set_title('Volcano plot')
+
+            fig.suptitle(cell, fontsize=18) #, y=0.99)
+            plt.show()
+
+
+# def heatmap_volcano(
+#     adata,
+#     sub_cell,
+#     signs,
+#     colors,
+#     title,
+#     thr_stat=0.5,
+#     thr_sign = 0.05,
+#     top=5,
+#     figsize=(20, 10),
+# ):
+#     if len(signs) >1 : 
+#         row_dendrogram =True
+#         col_dendrogram=True
+#         row_cluster=True
+#         col_cluster=True
+#     else:
+#         row_dendrogram=False
+#         col_dendrogram=False
+#         row_cluster=False
+#         col_cluster=False
+
+#     df_test = pd.DataFrame(adata[:,signs].X.T, index=adata[:,signs].var_names, columns=adata.obs_names) 
+#     df_test = df_test.apply(pd.to_numeric, errors="coerce")
+
+#     fig = plt.figure(figsize=figsize)
+#     gs = gridspec.GridSpec(nrows=1, ncols=2, wspace=0.4, width_ratios=[1.2, 0.9])
+
+#     ax1 = fig.add_subplot(gs[0])
+#     col_ha = pch.HeatmapAnnotation(df=adata.obs, 
+#                                 colors=colors,
+#                                 legend=True,
+#                                 legend_gap=5,
+#                                 hgap=0.5,
+#                                 axis=1)
+#     cluster = pch.ClusterMapPlotter(data=df_test,
+#                                 top_annotation=col_ha,
+#                                 # col_split=adata.obs[condition],
+#                                 # col_split_gap=0.8,
+#                                 label='values',
+#                                 col_dendrogram=col_dendrogram,
+#                                 row_dendrogram=row_dendrogram,
+#                                 row_cluster=row_cluster,
+#                                 col_cluster=col_cluster,
+#                                 show_rownames=True,
+#                                 show_colnames=True,
+#                                 verbose=0,
+#                                 legend_gap=5, 
+#                                 cmap="bwr",  
+#                                 plot =False,
+#                                 plot_legend=False,
+#                                 center=0, 
+#                                 xticklabels_kws={'labelrotation':-90}) 
+#     cluster.plot(ax=ax1, subplot_spec = gs[0])
+#     cluster.plot_legends(ax=ax1)
+#     ax1.set_title('Heatmap')
+
+#     ax2 = fig.add_subplot(gs[1])
+#     dc.pl.volcano(
+#         sub_cell, 
+#         # figsize=(5,5),
+#         x="log2FoldChange", 
+#         y="padj", 
+#         ax=ax2,
+#         thr_stat=thr_stat, 
+#         thr_sign=thr_sign, 
+#         top=top
+#     )
+#     ax2.set_title('Volcano plot')
+
+#     fig.suptitle(title, fontsize=18) #, y=0.99)
+#     plt.show()
+
+ # plots: bool = False,
+ # save: bool = False,
+# save_prefix: str = "decoupler",
+# figsize: tuple = (8,3),
+#     if save is True:
+# #         results_df.to_csv(save_prefix + "_" + ct + ".csv")
+# #         fig.savefig(save_prefix + "_" + ct + ".pdf", bbox_inches="tight")
+
+# def plot_DE(
+#     adata: ad.AnnData,
+#     colors: dict,
+#     # replicate = 'condition'
+#     condition = 'condition',
+#     cell_type: str = 'cell_type',
+#     top_volcano: int = 5,
+#     thr_stat: float = 0.5, 
+#     thr_sign: float = 0.05,
+#     min_pct: float = 0.3,
+#     min_base_mean: float = 50.0,
+#     fill_na: str = 'grey',
+#     cmap: str ='bwr',
+#     # col_cluster: bool = False,
+# ):
+#     """Heatmap and volcano plot from pseudobulk analysis
+
+#     Parameters
+#     ----------
+#     adata
+#         anndata object
+#     colors
+#         dict of colors for each metadata to plot in the heatmap
+#     condition
+#         column that refers to the condition comparison. Default, set to condition
+#     cell_type
+#         column that refers to the celltype column. Default, set to cell_type  
+#     key
+#         key in adata.uns['scispy'] storing the results to plot
+#     thr_sign
+#         p adjusted to be significant
+#     thr_stat
+#         log2FoldChange to be significant
+#     min_pct
+#         min pct.1 or pct.2 to be significant
+#     fill_na
+#         if colors not provide for one condition, put it in grey by default
+#     """
+#     results = adata.uns['scispy']['results']
+#     matrix = adata.uns["scispy"]["matrice"]
+#     celltypes = results[cell_type].unique()
+    
+#     for cell in celltypes:
+#         sub_mtx = matrix.loc[:,matrix.columns.str.contains(f'_{cell}_')].T
+#         adata = ad.AnnData(sub_mtx)
+#         adata.obs[['celltype','condition']] = adata.obs_names.str.split('_', expand=True).to_frame(index=False)[[2,3]].values
+#         # print(cell)
+#         sub_cell = results[results[cell_type] == cell]
+#         sub_cell.index = sub_cell['gene']
+
+#         signs = sub_cell.loc[
+#             (sub_cell['padj'] <= thr_sign) & 
+#             (np.abs(sub_cell['log2FoldChange']) >= thr_stat) &
+#             (sub_cell['baseMean'] >=min_base_mean) & 
+#             ((sub_cell['pct_1'] >= min_pct) | (sub_cell['pct_2']  >= min_pct)), 'gene'].unique()
+    
+#         col_colors = pd.DataFrame(adata.obs[condition].map(colors[condition]))
+#         col_colors['celltype'] = "Blue"
+#         col_colors = col_colors.fillna(fill_na)
+#         # row_colors #= row_colors[['celltype', 'condition']] 
+
+#         if len(signs) > 0:        
+#             sc.pp.normalize_total(adata)
+#             sc.pp.log1p(adata)
+#             sc.pp.scale(adata, max_value=10)
+
+#             # df_test = pd.DataFrame(adata[:,signs].X.T, index=adata[:,signs].var_names, columns=adata.obs_names) 
+#             # df_test = df_test.apply(pd.to_numeric, errors="coerce")
+
+#             heatmap_volcano(
+#                 adata,
+#                 sub_cell,
+#                 signs=signs,
+#                 colors=colors,
+#                 title = cell,
+#                 figsize=(20, 10),
+#                 thr_stat = thr_stat, 
+#                 thr_sign=thr_sign,
+#                 top=top_volcano,
+#             )
 
 
 

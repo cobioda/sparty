@@ -291,21 +291,12 @@ def pseudobulk(
     groups: list | None = None,
     key_added: str = 'results',
     layer: str = "counts",
-    # top_volcano: int = 20,
     min_cells: int = 5,
     min_counts: int = 100,
     min_count_gene: int = 10, 
     min_total_count_gene: int = 15,
-    # min_count: int = 5, 
-    # min_total_count: int = 5,
-    # sign_thr: float = 0.05,
-    # lFCs_thr: int = 0.5,
-    save: bool = False,
-    save_prefix: str = "decoupler",
-    figsize: tuple = (8,3),
     digits: int = 3,
     shrink_LFC: bool = False,
-    plots: bool = False,
     quiet: bool = True,
 ):
     """Decoupler pydeseq2 pseudobulk handler.
@@ -379,7 +370,11 @@ def pseudobulk(
 
     # conds.sort()
     # conds = [reference_level, tested_level]
- 
+    adata.uns['scispy']['params'] = {
+        'replicate': replicate,
+        'groups_col': [groups_key, condition],
+    }
+
     adconds = adata[(adata.obs[condition].isin(conds)) & (adata.obs[groups_key].isin(groups))].copy()
     
     pdata = dc.pp.pseudobulk(
@@ -397,16 +392,6 @@ def pseudobulk(
         min_cells=min_cells,
         min_counts=min_counts,
     )
-    # pdata = dc.get_pseudobulk(
-    #     adconds,
-    #     sample_col=replicate,  
-    #     # groups_col=groups_key,  
-    #     groups_col=[groups_key, condition],  
-    #     layer=layer,
-    #     mode="sum",
-    #     min_cells=min_cells,
-    #     min_counts=min_counts,
-    # )
 
     # print(pdata)
     adata.uns["scispy"]["matrice"] = pd.DataFrame(pdata.X.T, index=pdata.var_names, columns=pdata.obs_names) 
@@ -485,27 +470,8 @@ def pseudobulk(
 
                         df_total = pd.concat([df_total, results_df.reset_index(names="gene")])
                         # df_total = pd.concat([df_total, results_df.reset_index()])
-                        # print("============================================================================")
-                        # print("============================================================================")
-                        # if plots :
-                        #     if len(signs.index.tolist()) > 0:
-                        #         fig, axs = plt.subplots(1, 2, figsize=figsize)
-                        #         dc.plot_volcano_df(results_df, x="log2FoldChange", y="padj", ax=axs[0], top=top_volcano)
-                        #         axs[0].set_title(ct + "("+conds[1]+"-"+conds[0]+")")
-                        #         sc.pp.normalize_total(sub)
-                        #         sc.pp.log1p(sub)
-                        #         sc.pp.scale(sub, max_value=10)
-                        #         sc.pl.matrixplot(sub, signs.index, groupby=replicate, ax=axs[1])
-                        #         plt.tight_layout()
-
-                        #     if save is True:
-                        #         results_df.to_csv(save_prefix + "_" + ct + ".csv")
-                        #         fig.savefig(save_prefix + "_" + ct + ".pdf", bbox_inches="tight")
-
+          
     adata.uns["scispy"][key_added] = df_total.reset_index(drop=True)
-    # adata.uns["scispy"]["pseudobulk"][key_added] ???
-    # print(f'results stored in adata.uns["scispy"][{key_added}]')
-    # print(f'--> scis.pl.plot_pseudobulk(adata, key={key_added})')
 
 
 # def pseudobulk(
