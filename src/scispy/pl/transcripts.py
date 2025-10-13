@@ -85,7 +85,7 @@ def density_count_genes(
     density_kde: bool = False,
     pct_max: int = 99,
     cmap = plt.cm.viridis,
-    clip_outside: bool = True,
+    clip_outside: bool = False,
     ax = None, 
 ):
     data = _subset_transcripts(
