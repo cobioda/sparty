@@ -22,6 +22,10 @@ from .transcripts import (
     density_count_genes
 )
 
+from ._qc import (
+    plot_hist_QC
+)
+
 __all__ = [
     "plot_shapes",
     "plot_shape_along_axis",
@@ -37,5 +41,7 @@ __all__ = [
     "plot_DE",
     "plot_shapes",
     "density_count_genes",
-    "maplot"
+    "maplot",
+    "plot_hist_QC",
+
 ]

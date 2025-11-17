@@ -768,6 +768,12 @@ def stripPlotDE(
         
         tmp = sub_df[sub_df['significative']==1].reset_index(drop=True)
         order = list(tmp.groupby([x_key]).groups.keys())
+        
+        sns.stripplot(data=sub_df[sub_df['significative']==0], 
+                    x=x_key, y=y_key, 
+                    color="grey", 
+                    orient='v', alpha=0.6, size=2, 
+                    jitter=0.4)
 
         sns.stripplot(data=sub_df[sub_df['significative']==1], 
                     x=x_key, y=y_key, hue=x_key, palette=palette,
@@ -797,11 +803,7 @@ def stripPlotDE(
                         expand=(2, 2),
                         arrowprops=dict(arrowstyle='->', color='black'), ax=ax)
 
-        sns.stripplot(data=sub_df[sub_df['significative']==0], 
-                    x=x_key, y=y_key, 
-                    color="grey", 
-                    orient='v', alpha=0.6, size=2, 
-                    jitter=0.4)
+        
 
         ax.tick_params(axis='x', rotation=45, size=12) #  ha='right'
         cond1, cond2 = cond.split('_')
@@ -984,7 +986,15 @@ def plot_DE(
             sub_mtx = mtx.loc[signs, mtx.columns.str.contains(f'_{cell}_')].T
             adata = ad.AnnData(sub_mtx)
             adata.obs["sample"] = adata.obs.index.map(lambda x: extract_sample(x, samples))
-            adata.obs[['celltype','condition']] = adata.obs_names.str.split('_', expand=True).to_frame(index=False)[[2,3]].values
+            adata.obs["groups"] = adata.obs.apply(
+                lambda row: row.name.replace(f"{row['sample']}_", ""),
+                axis=1
+            )
+            adata.obs[[groups_key, condition]] = (
+                adata.obs["groups"].str.split("_", expand=True)
+            )
+            # adata.obs
+            # adata.obs[['celltype','condition']] = adata.obs_names.str.split('_', expand=True).to_frame(index=False)[[2,3]].values
             
             sc.pp.normalize_total(adata)
             sc.pp.log1p(adata)

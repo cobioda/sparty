@@ -7,7 +7,6 @@ import seaborn as sns
 from matplotlib.path import Path
 from scipy.stats import gaussian_kde
 
-# from scipy.stats import gaussian_kde
 # import pandas as pd 
 
 def _count_dens(
@@ -39,8 +38,7 @@ def _kde_dens(
     xy = np.vstack([x,y])
     kde = gaussian_kde(xy, bw_method=lambda s: s.scotts_factor() * smooth)
 
-    # Create a regular grid over the area
-    yy, xx = np.mgrid[ymin:ymax:nb_grid, xmin:xmax:nb_grid]  # 100x100 grid
+    yy, xx = np.mgrid[ymin:ymax:nb_grid, xmin:xmax:nb_grid]  # nb_grid x nb_grid
     positions = np.vstack([xx.ravel(),yy.ravel()])
     density = np.reshape(kde(positions), xx.shape)
 
@@ -88,6 +86,9 @@ def density_count_genes(
     clip_outside: bool = False,
     ax = None, 
 ):
+    if type(genes) == str:
+        genes = [genes]
+
     data = _subset_transcripts(
         sdata=sdata,
         genes=genes,
@@ -114,47 +115,39 @@ def density_count_genes(
         vmax = None
     else:
         print('histo')
-        heatmap, xx, yy = _count_dens(x, y, xmax, xmin, ymax, ymin, bin_size_um )
-        vmax = np.percentile(heatmap, pct_max)
-    # vmax=heatmap.max()
-    # print(vmax)
-    if clip_outside:
-        grid_points = gpd.GeoSeries(gpd.points_from_xy(xx.ravel(), yy.ravel()))
-        mask = grid_points.within(polygon).to_numpy().reshape(heatmap.shape)
-        heatmap = np.where(mask, heatmap, np.nan) # or -1
-
+        heatmap, xx, yy = _count_dens(x, y, xmax, xmin, ymax, ymin, bin_size_um)
+        vmax = np.max([1, np.percentile(heatmap, pct_max)])
+    
     cmap.set_under('white')  
 
+    created_fig = False
     if ax is None:
         _, ax = plt.subplots(figsize=figsize)
         ax.set_title(f"Density plot - {':'.join(genes)}")
-        ax.plot(
-            shapely.get_coordinates(polygon.boundary)[:, 0], 
-            shapely.get_coordinates(polygon.boundary)[:, 1], 'r-', linewidth=2) 
-        img = ax.imshow(
-            heatmap,
-            cmap=cmap,
-            origin="lower",
-            extent=[xmin, xmax, ymin, ymax],
-            vmax=vmax
-        )
+        created_fig = True
+
+    if clip_outside:
+        coords = shapely.get_coordinates(polygon.boundary)
+        grid_points = gpd.GeoSeries(gpd.points_from_xy(xx.ravel(), yy.ravel()))
+        mask = grid_points.within(polygon).to_numpy().reshape(heatmap.shape)
+        heatmap = np.where(mask, heatmap, np.nan) # or -1
+        ax.plot(coords[:, 0], coords[:, 1], 'r-', linewidth=2)
+
+    img = ax.imshow(
+        heatmap,
+        cmap=cmap,
+        origin="lower",
+        extent=[xmin, xmax, ymin, ymax],
+        vmax=vmax
+    )
+
+    if created_fig:
+        ax.invert_yaxis()
         plt.colorbar(img, ax=ax, label="Counts", shrink=0.5)
         plt.show()
-    else: 
-        ax.plot(
-            shapely.get_coordinates(polygon.boundary)[:, 0], 
-            shapely.get_coordinates(polygon.boundary)[:, 1], 'r-', linewidth=2) 
-        img = ax.imshow(
-            heatmap,
-            cmap=cmap,
-            origin="lower",
-            extent=[xmin, xmax, ymin, ymax],
-            vmax=vmax
-        )
-        # ax.set_title("Heatmap brute - Comptes de points par pixel")
-        # plt.colorbar(img, ax=ax, label="Counts", shrink=0.5)
+        return
+    else:
         return img, vmax
-        
 
 
 # def subset_transcripts(
