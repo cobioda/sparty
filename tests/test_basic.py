@@ -1,10 +1,10 @@
 import pytest
 
-import scispy
+import sparty
 
 
 def test_package_has_version():
-    assert scispy.__version__ is not None
+    assert sparty.__version__ is not None
 
 
 @pytest.mark.skip(reason="This decorator should be removed when test passes.")

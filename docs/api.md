@@ -3,8 +3,8 @@
 ## i/o
 
 ```{eval-rst}
-.. module:: scispy.io
-.. currentmodule:: scispy
+.. module:: sparty.io
+.. currentmodule:: sparty
 
 .. autosummary::
     :toctree: generated
@@ -17,8 +17,8 @@
 ## Preprocessing
 
 ```{eval-rst}
-.. module:: scispy.pp
-.. currentmodule:: scispy
+.. module:: sparty.pp
+.. currentmodule:: sparty
 
 .. autosummary::
     :toctree: generated
@@ -31,8 +31,8 @@
 ## Tools
 
 ```{eval-rst}
-.. module:: scispy.tl
-.. currentmodule:: scispy
+.. module:: sparty.tl
+.. currentmodule:: sparty
 
 .. autosummary::
     :toctree: generated
@@ -51,8 +51,8 @@
 ## Plotting
 
 ```{eval-rst}
-.. module:: scispy.pl
-.. currentmodule:: scispy
+.. module:: sparty.pl
+.. currentmodule:: sparty
 
 .. autosummary::
     :toctree: generated

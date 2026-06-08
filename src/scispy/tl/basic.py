@@ -320,7 +320,7 @@ def pseudobulk(
     groups
         specify the cell types to work with
     key_added
-        The key added to `adata.uns['scispy']` result is saved to.
+        The key added to `adata.uns['sparty']` result is saved to.
     layer
         sdata.table count values layer
     min_cells
@@ -345,7 +345,7 @@ def pseudobulk(
     Return a global pd.DataFrame containing the pseudobulk analysis for plotting.
     """
     # https://decoupler-py.readthedocs.io/en/latest/notebooks/pseudobulk.html
-    adata.uns["scispy"] = {}
+    adata.uns["sparty"] = {}
     
     if groups is None:
         groups = adata.obs[groups_key].cat.categories.tolist()
@@ -358,7 +358,7 @@ def pseudobulk(
     elif (conds is None) & (pairwise != None):
         conds = list(set(itertools.chain(*pairwise)))
 
-    adata.uns['scispy']['params'] = {
+    adata.uns['sparty']['params'] = {
         'replicate': replicate,
         'groups_col': [groups_key, condition],
     }
@@ -385,7 +385,7 @@ def pseudobulk(
         [groups_key, condition]
         ].astype(str).agg(join_by.join, axis=1).values
 
-    adata.uns["scispy"]["matrice"] = pd.DataFrame(pdata.X.T, index=pdata.var_names, columns=pdata.obs_names) 
+    adata.uns["sparty"]["matrice"] = pd.DataFrame(pdata.X.T, index=pdata.var_names, columns=pdata.obs_names) 
     # dc.plot_psbulk_samples(pdata, groupby=[replicate, groups_key], figsize=figsize)
   
     if not design:
@@ -472,7 +472,7 @@ def pseudobulk(
 
                     df_total = pd.concat([df_total, results_df.reset_index(names="gene")])
           
-    adata.uns["scispy"][key_added] = df_total.reset_index(drop=True)
+    adata.uns["sparty"][key_added] = df_total.reset_index(drop=True)
     return
 
 
@@ -511,7 +511,7 @@ def pseudobulk(
 #     groups
 #         specify the cell types to work with
 #     key_added
-#         The key added to `adata.uns['scispy']` result is saved to.
+#         The key added to `adata.uns['sparty']` result is saved to.
 #     layer
 #         sdata.table count values layer
 #     min_cells
@@ -610,9 +610,9 @@ def pseudobulk(
 #                             results_df.to_csv(save_prefix + "_" + ct + ".csv")
 #                             fig.savefig(save_prefix + "_" + ct + ".pdf", bbox_inches="tight")
     
-#     adata.uns["scispy"] = {}
-#     adata.uns["scispy"][key_added] = df_total.reset_index(drop=True)
-#     print("results stored in adata.uns['scispy']['",key_added,"']")
+#     adata.uns["sparty"] = {}
+#     adata.uns["sparty"][key_added] = df_total.reset_index(drop=True)
+#     print("results stored in adata.uns['sparty']['",key_added,"']")
 #     print("--> scis.pl.plot_pseudobulk(adata, key='",key_added,"')")
 
 

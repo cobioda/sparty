@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from spatialdata import SpatialData
 import spatialdata_plot
 import adjustText as at
-from scispy.tl.basic import sdata_rotate, add_to_points
 from matplotlib.transforms import Bbox
 import decoupler as dc 
 import matplotlib.gridspec as gridspec
@@ -17,6 +16,7 @@ from statannotations.Annotator import Annotator
 from itertools import combinations
 from ..colors import get_palette
 
+from ..tl.basic import sdata_rotate, add_to_points
 
 sc.set_figure_params(vector_friendly=True, dpi=300, dpi_save=300) 
 plt.rcParams.update(

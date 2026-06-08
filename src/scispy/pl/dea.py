@@ -53,7 +53,7 @@ def barplotDE(
     if isinstance(adata, ad.AnnData):
         if key is None:
             raise ValueError("`key` must be provided when `adata` is an AnnData object.")
-        res_de = adata.uns['scispy'][key].copy()
+        res_de = adata.uns['sparty'][key].copy()
     elif isinstance(adata, pd.DataFrame):
         res_de = adata.copy()
     else:
@@ -150,7 +150,7 @@ def stripPlotDE(
     y_key
         y key
     key
-        key in adata.uns['scispy'] storing the results to plot
+        key in adata.uns['sparty'] storing the results to plot
     padj
         p adjusted to be significant
     log2FoldChange
@@ -163,7 +163,7 @@ def stripPlotDE(
         pdf or png
     """
     if isinstance(adata, ad.AnnData):
-        df = adata.uns['scispy'][key].copy()
+        df = adata.uns['sparty'][key].copy()
     else:
         df = adata.copy()
 
@@ -287,10 +287,10 @@ def maplot(
     figsize: tuple = (8,6),
     fig_title: str = "MA plot",
 ):  
-    if 'scispy' not in adata.uns.keys():
+    if 'sparty' not in adata.uns.keys():
         print('Run DEA before plotting...')
         return
-    df = adata.uns['scispy'][key].copy()
+    df = adata.uns['sparty'][key].copy()
     df["log2_mean"] = np.log2(df[x])
 
     up_msk = (df[y] >= thr_stat) & (df["padj"] <= thr_sign) 
@@ -454,7 +454,7 @@ def _resolve_groups_col(groups_col: list) -> tuple[str | None, str, list]:
 
 def _resolve_params(adata, replicate, groups_col):
     """Merges the explicit parameters with those stored in adata.uns."""
-    params     = adata.uns["scispy"]["params"]
+    params     = adata.uns["sparty"]["params"]
     replicate  = replicate  or params["replicate"]
     groups_col = groups_col or params["groups_col"]
 
@@ -612,10 +612,10 @@ def plot_DE(
 ) -> None:
     """
     Plot a heatmap and/or volcano plot of differentially expressed genes
-    for each cell type present in adata.uns[‘scispy’].
+    for each cell type present in adata.uns["sparty"].
     """
-    df = adata.uns['scispy']['results'].copy()
-    mtx = adata.uns["scispy"]["matrice"].copy()
+    df = adata.uns['sparty']['results'].copy()
+    mtx = adata.uns["sparty"]["matrice"].copy()
 
     replicate, groups_key, condition, col_to_add = _resolve_params(
         adata, replicate, groups_col
@@ -749,11 +749,11 @@ def plot_DE(
 # ) -> None:
 #     """
 #     Plot a heatmap and/or volcano plot of differentially expressed genes
-#     for each cell type present in adata.uns[‘scispy’].
+#     for each cell type present in adata.uns['sparty'].
 #     """
-#     df = adata.uns['scispy']['results'].copy()
-#     mtx = adata.uns["scispy"]["matrice"].copy()
-#     params = adata.uns['scispy']['params']
+#     df = adata.uns['sparty']['results'].copy()
+#     mtx = adata.uns["sparty"]["matrice"].copy()
+#     params = adata.uns['sparty']['params']
 
 #     if not replicate:
 #         replicate = params['replicate']
@@ -777,9 +777,9 @@ def plot_DE(
 
 
 #     if not replicate:
-#         replicate = adata.uns['scispy']['params']['replicate']
+#         replicate = adata.uns['sparty']['params']['replicate']
 #     if not groups_key:
-#         groups_key, condition = adata.uns['scispy']['params']['groups_col']
+#         groups_key, condition = adata.uns['sparty']['params']['groups_col']
 
 #     if isinstance(groups_col, list) and len(groups_col) == 2:
 #             groups_key, condition = groups_col
@@ -953,13 +953,13 @@ def plot_DE(
 #     figsize: tuple =  (20, 10),
 #     join_by: str = "..",
 # ):
-#     df = adata.uns['scispy']['results'].copy()
-#     mtx = adata.uns["scispy"]["matrice"].copy()
+#     df = adata.uns['sparty']['results'].copy()
+#     mtx = adata.uns["sparty"]["matrice"].copy()
     
 #     if not replicate:
-#         replicate = adata.uns['scispy']['params']['replicate']
+#         replicate = adata.uns['sparty']['params']['replicate']
 #     if not groups_col:
-#         groups_key, condition = adata.uns['scispy']['params']['groups_col']
+#         groups_key, condition = adata.uns['sparty']['params']['groups_col']
 #     if not groups:
 #         groups = df[cell_type].unique().tolist()
 
@@ -1146,7 +1146,7 @@ def plot_DE(
 #     cell_type
 #         column that refers to the celltype column. Default, set to cell_type  
 #     key
-#         key in adata.uns['scispy'] storing the results to plot
+#         key in adata.uns['sparty'] storing the results to plot
 #     thr_sign
 #         p adjusted to be significant
 #     thr_stat
@@ -1156,8 +1156,8 @@ def plot_DE(
 #     fill_na
 #         if colors not provide for one condition, put it in grey by default
 #     """
-#     results = adata.uns['scispy']['results']
-#     matrix = adata.uns["scispy"]["matrice"]
+#     results = adata.uns['sparty']['results']
+#     matrix = adata.uns["sparty"]["matrice"]
 #     celltypes = results[cell_type].unique()
     
 #     for cell in celltypes:
@@ -1225,7 +1225,7 @@ def plot_DE(
 #     y_key
 #         y key
 #     key
-#         key in adata.uns['scispy'] storing the results to plot
+#         key in adata.uns['sparty'] storing the results to plot
 #     padj
 #         p adjusted to be significant
 #     log2FoldChange
@@ -1240,7 +1240,7 @@ def plot_DE(
 #     if palette is None:
 #         palette="deep"
 
-#     df = adata.uns['scispy'][key].copy()
+#     df = adata.uns['sparty'][key].copy()
 
 #     df['significative'] = 0
 #     df.loc[df.padj < padj, 'significative'] = 1
@@ -1310,7 +1310,7 @@ def plot_DE(
 #     y_key
 #         y key
 #     key
-#         key in adata.uns['scispy'] storing the results to plot
+#         key in adata.uns['sparty'] storing the results to plot
 #     padj
 #         p adjusted to be significant
 #     log2FoldChange
@@ -1325,7 +1325,7 @@ def plot_DE(
 #     if isinstance(adata, ad.AnnData):
 #         if key is None:
 #             raise ValueError("`key` must be provided when `adata` is an AnnData object.")
-#         df = adata.uns['scispy'][key].copy()
+#         df = adata.uns['sparty'][key].copy()
 #     elif isinstance(adata, pd.DataFrame):
 #         df = adata.copy()
 #     else:
