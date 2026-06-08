@@ -8,7 +8,7 @@ diff a/docs/conf.py b/docs/conf.py	(rejected hunks)
 -    "github_version": "main",  # Version
 -    "conf_py_path": "/docs/",  # Path in the checkout to the docs root
 +    "github_user": "bfxomics",
-+    "github_repo": "https://github.com/bfxomics/scispy",
++    "github_repo": "https://github.com/bfxomics/sparty",
 +    "github_version": "main",
 +    "conf_py_path": "/docs/",
  }
