@@ -3,7 +3,7 @@ build-backend = "hatchling.build"
 requires = ["hatchling"]
 
 [project]
-name = "scispy"
+name = "sparty"
 version = "0.0.1"
 description = "single-cell in-situ python package"
 readme = "README.md"
@@ -15,9 +15,9 @@ authors = [
 maintainers = [
     {name = "kevin lebrigand", email = "lebrigandk@gmail.com"},
 ]
-urls.Documentation = "https://scispy.readthedocs.io/"
-urls.Source = "https://github.com/cobioda/scispy"
-urls.Home-page = "https://github.com/cobioda/scispy"
+urls.Documentation = "https://sparty.readthedocs.io/"
+urls.Source = "https://github.com/cobioda/sparty"
+urls.Home-page = "https://github.com/cobioda/sparty"
 dependencies = [
     "anndata >= 0.11.3",
     "scanpy >= 1.9.8",
@@ -64,7 +64,7 @@ test = [
 ]
 
 [tool.coverage.run]
-source = ["scispy"]
+source = ["sparty"]
 omit = [
     "**/test_*.py",
 ]
