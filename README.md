@@ -1,23 +1,23 @@
 <div align="center">
 
-# **scispy**
+# **sparty**
 
 **Single-Cell In-Situ Spatial-Omics Data Analysis**
 
 ---
 
 <p align="center">
-  <a href="https://scispy.readthedocs.io/en/latest/" target="_blank">Documentation</a> •
-  <a href="https://scispy.readthedocs.io/en/latest/docs/notebooks/example.ipynb" target="_blank">Examples</a> •
+  <a href="https://sparty.readthedocs.io/en/latest/" target="_blank">Documentation</a> •
+  <a href="https://sparty.readthedocs.io/en/latest/docs/notebooks/example.ipynb" target="_blank">Examples</a> •
   <a href="https://www.biorxiv.org/" target="_blank">Preprint</a>
 </p>
 
 [![Tests][badge-tests]][link-tests]
 [![Documentation][badge-docs]][link-docs]
 
-[badge-tests]: https://img.shields.io/github/actions/workflow/status/cobioda/scispy/test.yaml?branch=main
-[link-tests]: https://github.com/cobioda/scispy/actions/workflows/test.yml
-[badge-docs]: https://img.shields.io/readthedocs/scispy
+[badge-tests]: https://img.shields.io/github/actions/workflow/status/cobioda/sparty/test.yaml?branch=main
+[link-tests]: https://github.com/cobioda/sparty/actions/workflows/test.yml
+[badge-docs]: https://img.shields.io/readthedocs/sparty
 
 </div>
 
@@ -28,7 +28,7 @@
 </p>
 
 <p align="center">
-  <img src="https://github.com/cobioda/scispy/docs/_static/scispy.png" width="300px">
+  <img src="https://github.com/cobioda/sparty/docs/_static/sparty.png" width="300px">
 </p>
 
 ## Features
@@ -50,20 +50,20 @@ Please refer to the [documentation][link-docs]. In particular, the
 ## Installation
 
 1. Create a conda environment (Python >= 3.10)
-2. Install scispy using pip:
+2. Install sparty using pip:
 
 ```bash
-conda create -n scispy python==3.10
-conda activate scispy
-pip install git+https://github.com/cobioda/scispy.git@main
+conda create -n sparty python==3.10
+conda activate sparty
+pip install git+https://github.com/cobioda/sparty.git@main
 ```
 
 ## Contribution
 
 If you found a bug or you want to propose a new feature, please use the [issue tracker][issue-tracker].
 
-[issue-tracker]: https://github.com/cobioda/scispy/issues
-[changelog]: https://scispy.readthedocs.io/en/latest/changelog.html
-[link-docs]: https://scispy.readthedocs.io
-[link-api]: https://scispy.readthedocs.io/en/latest/api.html
-[link-tutorial]: https://scispy.readthedocs.io/en/latest/notebooks/tutorial.html
+[issue-tracker]: https://github.com/cobioda/sparty/issues
+[changelog]: https://sparty.readthedocs.io/en/latest/changelog.html
+[link-docs]: https://sparty.readthedocs.io
+[link-api]: https://sparty.readthedocs.io/en/latest/api.html
+[link-tutorial]: https://sparty.readthedocs.io/en/latest/notebooks/tutorial.html
