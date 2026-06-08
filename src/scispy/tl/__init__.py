@@ -5,7 +5,6 @@ from .basic import (
     get_sdata_polygon,
     prep_pseudobulk,
     pseudobulk,
-    scis_prop,
     sdata_querybox,
     sdata_rotate,
     df_for_genes,
@@ -18,6 +17,7 @@ from .shapes import (
     shapes_of_cell_type,
     add_metadata_to_shape,
     shape_to_pseudobulk,
+    create_shapes,
 )
 
 from .unfolding import (
@@ -30,6 +30,11 @@ from .alpha_shape import (
     alpha_shape_optimal,
 )
 
+from .unassigned import (
+    unassigned_RNA,
+)
+
+
 __all__ = [
     "add_shapes_from_hdf5",
     "add_to_points",
@@ -39,7 +44,6 @@ __all__ = [
     "pseudobulk",
     "sdata_rotate",
     "sdata_querybox",
-    "scis_prop",
     "shapes_of_cell_type",
     "centerline",
     "shapeToImg",
@@ -50,4 +54,6 @@ __all__ = [
     "orthogonalDistance",
     "shape_to_pseudobulk",
     "alpha_shape_optimal",
+    "create_shapes",
+    "unassigned_RNA"
 ]
