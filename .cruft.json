@@ -4,13 +4,13 @@
   "checkout": "v0.4.0",
   "context": {
     "cookiecutter": {
-      "project_name": "scispy",
-      "package_name": "scispy",
+      "project_name": "sparty",
+      "package_name": "sparty",
       "project_description": "single-cell in-situ python package",
       "author_full_name": "kevin lebrigand",
       "author_email": "lebrigandk@gmail.com",
       "github_user": "bfxomics",
-      "project_repo": "https://github.com/bfxomics/scispy",
+      "project_repo": "https://github.com/bfxomics/sparty",
       "license": "MIT License",
       "_copy_without_render": [
         ".github/workflows/build.yaml",
