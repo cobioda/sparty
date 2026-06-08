@@ -7,16 +7,13 @@ from spatialdata.transformations import Identity, get_transformation
 import shapely
 import numpy as np
 import anndata as ad
-import networkx as nx 
-# import squidpy as sq 
+
+from ..pl._shapes import plot_shapes
 from ..tl.alpha_shape import alpha_shape_optimal
-# from shapely.ops import cascaded_union
+
 # from shapely.geometry import Polygon
 # from spatialdata.models import PointsModel
-# from shapely import count_coordinates
-# from shapely import count_coordinates, get_coordinates
 # from shapely import affinity
-# from anndata import AnnData
 # from scipy.sparse import csr_matrix
 
 def add_to_shapes(
@@ -27,7 +24,7 @@ def add_to_shapes(
     shape_key: str = "myshapes",
     scale_factor: float = 0.50825,  # if shapes comes from xenium explorer
     target_coordinates: str = "microns",
-    transfo_object_key : str = 'images',
+    transfo_object_key: str | None = None, # : str = 'images',
     # **kwargs,
 ):
     """Add shape element to SpatialData.
@@ -53,6 +50,7 @@ def add_to_shapes(
         return
 
     d = {"geometry": poly, "name": name}
+
     if centerline is not None:
         d["centerline"] = centerline
 
@@ -72,9 +70,6 @@ def add_to_shapes(
     # gdf.geometry = gdf.geometry.apply(
     #     affinity.translate, xoff=x_translation, yoff=y_translation
     # )
-    transfo = sd.transformations.get_transformation(
-        sdata[transfo_object_key], target_coordinates
-    )
 
     if centerline is not None:
         gdf['centerline'] = gpd.GeoSeries(gdf['centerline'])
@@ -86,11 +81,16 @@ def add_to_shapes(
     sdata.shapes[shape_key] = ShapesModel.parse(
         gdf, transformations = {target_coordinates: Identity()}
     )
-    sd.transformations.set_transformation(
-        sdata.shapes[shape_key], 
-        transfo, 
-        to_coordinate_system=target_coordinates
-    )
+
+    if transfo_object_key:
+        transfo = sd.transformations.get_transformation(
+            sdata[transfo_object_key], target_coordinates
+        )
+        sd.transformations.set_transformation(
+            sdata.shapes[shape_key], 
+            transfo, 
+            to_coordinate_system=target_coordinates
+        )
     # print(sd.transformations.get_transformation(
     #     sdata[shape_key], target_coordinates
     # ))
@@ -130,21 +130,21 @@ def add_metadata_to_shape(
     if right_on:
         obs_key.append(right_on)
         gdf = sdata.shapes[shape_key].merge(
-            sdata.table.obs[obs_key], 
+            sdata['table'].obs[obs_key], 
             how="left", left_index=True, right_on = right_on
         )
     else:
         gdf = sdata.shapes[shape_key].merge(
-            sdata.table.obs[obs_key], 
+            sdata['table'].obs[obs_key], 
             how="left", left_index=True, right_index=True
         )
 
     transfo = get_transformation(sdata[shape_key])
-    print(transfo)
+    # print(transfo)
     sdata.shapes[shape_key] = ShapesModel.parse(
         gdf, transformations={target_coordinates: transfo}
     )
-    print(get_transformation(sdata[shape_key]))
+    # print(get_transformation(sdata[shape_key]))
 
     sdata.shapes[shape_key]["len_shape"] = sdata.shapes[shape_key]["geometry"].apply(
         lambda x: count_coordinates(x)
@@ -167,7 +167,7 @@ def shapes_of_cell_type(
     celltype
         name of the cell type we want to extract
     obs_key
-        name of column where cell type can be found in sdata.table.obs
+        name of column where cell type can be found in sdata['table'].obs
     shape_key
         key of element shape
 
@@ -176,7 +176,7 @@ def shapes_of_cell_type(
     List of boundary coordinates for each cell.
     """
     # Extract cell shapes of the defined cell type
-    idx_cells = sdata.table.obs[sdata.table.obs[obs_key] == celltype].index
+    idx_cells = sdata['table'].obs[sdata['table'].obs[obs_key] == celltype].index
     gdf_shapes_cells = sdata[shape_key].loc[idx_cells]
 
     if len(gdf_shapes_cells["geometry"].geom_type.unique()) != 1:
@@ -233,6 +233,78 @@ def count_in_shape(
     return count.to_numpy()
 
 
+
+# def create_shapes(
+#     file,
+#     all= True,
+#     plot_fig = True,
+#     ncols = 4,
+# ):
+#     df_shapes = pd.read_csv(file, skiprows= 2)
+    
+#     if "Selection" in df_shapes.columns:
+#         _shapes = df_shapes['Selection'].unique()
+#     else: 
+#         _shapes = ['one']
+#         print("No selection name, supposed to be only one shape...")
+
+#     nrows = len(_shapes)//ncols + (len(_shapes) % ncols>0)
+
+
+#     plt.figure(figsize =(5*ncols, nrows* 5))
+#     plt.subplots_adjust(hspace=0.5, wspace=0.25)
+
+#     shapes = {}
+#     for n, shape in enumerate(_shapes, start=1):
+#         if len(_shapes) > 1:
+#             sub = df_shapes[df_shapes['Selection'] == shape]
+#         else:
+#             sub = df_shapes
+#         shapes[shape] = shapely.Polygon(
+#             zip(sub['X'],
+#                 sub['Y']))
+        
+#         if plot_fig:
+#             x, y = shapes[shape].exterior.xy
+#             ax = plt.subplot(nrows, ncols, n)
+#             ax.plot(x, y, linewidth=2)
+#             ax.set_title(shape, fontsize=20)
+#             # ax.set_aspect('equal')
+#             # ax.axis('off')          # Turn off axes ticks and labels
+#             # ax.set_frame_on(True)  # Remove the box around the plot
+#     plt.show()
+#     return shapes
+
+def create_shapes(
+    file,
+    all: bool = True,
+    plot_fig: bool = True,
+    ncols: int = 4,
+):
+    df_shapes = pd.read_csv(file, skiprows=2)
+
+    if "Selection" in df_shapes.columns:
+        shape_names = df_shapes["Selection"].unique()
+    else:
+        shape_names = ["one"]
+        print("No selection name, supposed to be only one shape...")
+
+    shapes = {}
+
+    for shape in shape_names:
+        if len(shape_names) > 1:
+            sub = df_shapes[df_shapes["Selection"] == shape]
+        else:
+            sub = df_shapes
+
+        shapes[shape] = shapely.Polygon(
+            zip(sub["X"], sub["Y"])
+        )
+
+    if plot_fig:
+        plot_shapes(shapes, ncols=ncols)
+
+    return shapes
 
 def shape_to_pseudobulk(
     sdata: sd.SpatialData,

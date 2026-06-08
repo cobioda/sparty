@@ -8,12 +8,29 @@ import matplotlib.pyplot as plt
 from spatialdata import SpatialData
 import spatialdata_plot
 import adjustText as at
-from scispy.tl.basic import sdata_rotate, add_to_points
 from matplotlib.transforms import Bbox
 import decoupler as dc 
 import matplotlib.gridspec as gridspec
 import PyComplexHeatmap as pch
+from statannotations.Annotator import Annotator
+from itertools import combinations
+from ..colors import get_palette
 
+from ..tl.basic import sdata_rotate, add_to_points
+
+sc.set_figure_params(vector_friendly=True, dpi=300, dpi_save=300) 
+plt.rcParams.update(
+    {'ps.fonttype':42,
+    'ps.fonttype': 42, 
+    'pdf.fonttype': 42, 
+    'font.size': 10, 
+    'font.family': 'Arial', 
+    'mathtext.fontset': 'cm', 
+    'mathtext.rm': 'Arial',
+    'lines.linewidth': .2, 
+    'xtick.top': False, 
+    'ytick.right': False}
+)
 
 def plot_mecr(
         adata: ad.AnnData,
@@ -45,73 +62,73 @@ def plot_mecr(
     plt.show()
 
 
-def plot_shapes(
-    sdata: sd.SpatialData,
-    group_lst: tuple = None,  # the cell types to consider
-    shapes_lst: tuple = None,  # the shapes to plot
-    color_key: str = "celltype_spatial",
-    shape_key: str = "arteries",
-    target_coordinates: str = "microns",
-    figsize: tuple = (12, 6),
-    palette: tuple = None,
-    save: bool = False,
-):
-    """Plot list of shapes
+# def plot_shapes(
+#     sdata: sd.SpatialData,
+#     group_lst: tuple = None,  # the cell types to consider
+#     shapes_lst: tuple = None,  # the shapes to plot
+#     color_key: str = "celltype_spatial",
+#     shape_key: str = "arteries",
+#     target_coordinates: str = "microns",
+#     figsize: tuple = (12, 6),
+#     palette: tuple = None,
+#     save: bool = False,
+# ):
+#     """Plot list of shapes
 
-    Parameters
-    ----------
-    sdata
-        SpatialData object obtained by tl.get_sdata_polygon()
-    group_lst
-        group list to consider (related to label_obs_key)
-    shapes_lst
-        shapes list to plot
-    color_key
-        label_key in sdata.table.obs to consider
-    shape_key
-        SpatialData shape element to consider
-    palette
-        dictionary of colors to use
-    target_coordinates
-        target_coordinates system of sdata object
-    figsize
-        figure size
-    save
-        wether or not to save the figure
+#     Parameters
+#     ----------
+#     sdata
+#         SpatialData object obtained by tl.get_sdata_polygon()
+#     group_lst
+#         group list to consider (related to label_obs_key)
+#     shapes_lst
+#         shapes list to plot
+#     color_key
+#         label_key in sdata['table'].obs to consider
+#     shape_key
+#         SpatialData shape element to consider
+#     palette
+#         dictionary of colors to use
+#     target_coordinates
+#         target_coordinates system of sdata object
+#     figsize
+#         figure size
+#     save
+#         wether or not to save the figure
 
-    """
-    region_key = sdata.table.uns["spatialdata_attrs"]["region"]
-    my_shapes = {region_key: sdata[region_key], shape_key: sdata[shape_key]}
-    my_tables = {"table": sdata["table"]}
-    sdata2 = SpatialData(shapes=my_shapes, tables=my_tables)
+#     """
+#     region_key = sdata['table'].uns["spatialdata_attrs"]["region"]
+#     my_shapes = {region_key: sdata[region_key], shape_key: sdata[shape_key]}
+#     my_tables = {"table": sdata["table"]}
+#     sdata2 = SpatialData(shapes=my_shapes, tables=my_tables)
 
-    fig, axs = plt.subplots(ncols=len(shapes_lst), nrows=1, figsize=figsize)
-    for i in range(0, len(shapes_lst)):
-        poly = sdata2[shape_key][sdata2[shape_key].name == shapes_lst[i]].geometry.item()
-        sdata3 = sd.polygon_query(
-            sdata2,
-            poly,
-            target_coordinate_system=target_coordinates,
-            filter_table=True,
-        )
+#     fig, axs = plt.subplots(ncols=len(shapes_lst), nrows=1, figsize=figsize)
+#     for i in range(0, len(shapes_lst)):
+#         poly = sdata2[shape_key][sdata2[shape_key].name == shapes_lst[i]].geometry.item()
+#         sdata3 = sd.polygon_query(
+#             sdata2,
+#             poly,
+#             target_coordinate_system=target_coordinates,
+#             filter_table=True,
+#         )
 
-        # sdata3.pl.render_images().pl.show(ax=axs[i])
-        if group_lst is None:
-            group_lst = sdata2.table.obs[color_key].unique().tolist()
+#         # sdata3.pl.render_images().pl.show(ax=axs[i])
+#         if group_lst is None:
+#             group_lst = sdata2['table'].obs[color_key].unique().tolist()
 
-        if palette is not None:
-            mypal = [palette[x] for x in group_lst]
-            sdata3.pl.render_shapes(elements=region_key, color=color_key, groups=group_lst, palette=mypal).pl.show(
-                ax=axs[i]
-            )
-        else:
-            sdata3.pl.render_shapes(elements=region_key, color=color_key, groups=group_lst).pl.show(ax=axs[i])
+#         if palette is not None:
+#             mypal = [palette[x] for x in group_lst]
+#             sdata3.pl.render_shapes(elements=region_key, color=color_key, groups=group_lst, palette=mypal).pl.show(
+#                 ax=axs[i]
+#             )
+#         else:
+#             sdata3.pl.render_shapes(elements=region_key, color=color_key, groups=group_lst).pl.show(ax=axs[i])
 
-        axs[i].set_title(shapes_lst[i])
-        if i < len(shapes_lst) - 1:
-            axs[i].get_legend().remove()
+#         axs[i].set_title(shapes_lst[i])
+#         if i < len(shapes_lst) - 1:
+#             axs[i].get_legend().remove()
 
-    plt.tight_layout()
+#     plt.tight_layout()
 
 
 def plot_shape_along_axis(
@@ -140,7 +157,7 @@ def plot_shape_along_axis(
     gene_lst
         gene list to consider
     color_key
-        label_key in sdata.table.obs to consider
+        label_key in sdata['table'].obs to consider
     sdata_group_key
         SpatialData element where to find the group label
     target_coordinates
@@ -155,14 +172,14 @@ def plot_shape_along_axis(
         wether or not to save the figure
     """
     if group_lst is None:
-        group_lst = sdata.table.obs[color_key].unique().tolist()
+        group_lst = sdata['table'].obs[color_key].unique().tolist()
 
     sdata_rotate(sdata, target_coordinates=target_coordinates, rotation_angle=rotation_angle)
     sdata2 = sdata.transform_to_coordinate_system(target_coordinates)
     
-    dataset_id = sdata2.table.obs.dataset_id.unique()[0]
-    feature_key = sdata2.table.uns["spatialdata_attrs"]["feature_key"]
-    polygon_key = sdata2.table.uns["spatialdata_attrs"]["region"][0]
+    dataset_id = sdata2['table'].obs.dataset_id.unique()[0]
+    feature_key = sdata2['table'].uns["spatialdata_attrs"]["feature_key"]
+    polygon_key = sdata2['table'].uns["spatialdata_attrs"]["region"][0]
     transcript_key = list(sdata.points.keys())[0]  # need to be in spatialdata_attrs
 
     # compute dataframes
@@ -175,8 +192,8 @@ def plot_shape_along_axis(
     step_number = int(total_x / bin_size)
 
     # init color palette
-    #cats = sdata.table.obs[color_key].cat.categories.tolist()
-    #colors = list(sdata.table.uns[color_key + "_colors"])
+    #cats = sdata['table'].obs[color_key].cat.categories.tolist()
+    #colors = list(sdata['table'].uns[color_key + "_colors"])
     #mypal = dict(zip(cats, colors))
     if palette is not None:
         mypal = palette
@@ -292,10 +309,10 @@ def plot_sdata(
     sdata
         SpatialData object.
     color_key
-        color key from .table.obs
+        color key from ['table'].obs
     """
     if shape_keys is None:
-        shape_keys = sdata.table.uns['spatialdata_attrs']['region']
+        shape_keys = sdata['table'].uns['spatialdata_attrs']['region']
         #shape_keys = list(sdata.shapes.keys())  # better would be to get the list of spatialdata_attrs 'cell_regions'
     if feature_key is None:
         feature_key = sdata.tables[list(sdata.tables.keys())[0]].uns["spatialdata_attrs"]["feature_key"]
@@ -360,25 +377,25 @@ def plot_multi_sdata(
     sdata
         SpatialData object.
     color_key
-        color key from .table.obs
+        color key from ['table'].obs
     """
-    sdata.table.obs[color_key] = sdata.table.obs[color_key].cat.remove_unused_categories()
-    sdata.table.uns.pop(color_key + "_colors", None)
+    sdata['table'].obs[color_key] = sdata['table'].obs[color_key].cat.remove_unused_categories()
+    sdata['table'].uns.pop(color_key + "_colors", None)
 
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(20, 6))
 
-    sns.scatterplot(x="center_x", y="center_y", data=sdata.table.obs, s=1, hue=color_key, ax=ax1)
+    sns.scatterplot(x="center_x", y="center_y", data=sdata['table'].obs, s=1, hue=color_key, ax=ax1)
     ax1.axis("equal")
     ax1.get_legend().remove()
     ax1.set_title("anndata.obs coordinates")
     ax1.invert_yaxis()
 
-    sdata.pl.render_shapes(element=sdata.table.uns["spatialdata_attrs"]["region"][0], color=color_key).pl.show(ax=ax2)
+    sdata.pl.render_shapes(element=sdata['table'].uns["spatialdata_attrs"]["region"][0], color=color_key).pl.show(ax=ax2)
     ax2.get_legend().remove()
     ax2.set_title("spatialdata polygons")
 
-    sc.pl.embedding(sdata.table, "spatial", color=color_key, size=1, ax=ax3)
-    #sq.pl.spatial_scatter(sdata.table, basis='spatial', color=color_key, shape=None, size=1, ax=ax3)
+    sc.pl.embedding(sdata['table'], "spatial", color=color_key, size=1, ax=ax3)
+    #sq.pl.spatial_scatter(sdata['table'], basis='spatial', color=color_key, shape=None, size=1, ax=ax3)
     #ax2.get_legend().remove()
     #ax3.set_title("squidpy spatial")
 
@@ -390,143 +407,6 @@ def plot_multi_sdata(
         plt.savefig("plot_multi_sdata.pdf", format="pdf", bbox_inches="tight")
 
 
-def get_palette(color_key: str) -> dict:
-    """Palette definition for specific projects.
-
-    Parameters
-    ----------
-    color_key
-        color key (might be 'group', 'population' or 'celltype').
-
-    Returns
-    -------
-    Return palette dictionary.
-    """
-    if color_key == "group":
-        palette = {"CTRL": "#006E82", "PAH": "#AA0A3C"}
-    elif color_key == "population":
-        palette = {"Endothelial": "#0077b6", "Epithelial": "#5e548e", "Immune": "#606c38", "Stroma": "#bb3e03"}
-    elif color_key == "compartment":
-        palette = {
-            "cartilage nasal": "#fb8500",
-            "vascular lymphatic": "#ef233c",
-            "olfactory epithelium": "#344966",
-            "migrating neuron": "#606c38",
-        }
-    elif color_key == "HTAP":
-        palette = {
-            # htap
-            "AT2": "#3E8F91",
-            "AT1": "#6F5D85",
-            "Basal": "#E41A1C",
-            "Multiciliated": "#1f618d",
-            "Pre-TB secretory": "#3b683f",
-            "Secretory": "#E6AB02",
-            "AT0": "#BA6866",
-            "AT1-AT2": "#F2920D",
-            "Rare": "#DF8CC4",
-            "EC general capillary": "#4EA2D7",
-            "Plasma cells": "#78281f",
-            "EC venous pulmonary": "#1E6275",
-            "EC venous systemic": "#2FA679",
-            "EC aerocyte capillary": "#95D286",
-            "Lymphatic EC": "#2d7687",
-            "EC arterial": "#C9CE46",
-            "Smooth muscle": "#ec7063",
-            "Alveolar fibroblasts": "#af801d",
-            "Adventitial fibroblasts": "#D6217C",
-            "Myofibroblasts": "#426F8E",
-            "Pericytes": "#7b241c",
-            "Mast cells": "#F79F80",
-            "Alveolar macrophages": "#BC6399",
-            "C1Q+ macrophages": "#B22070",
-            "CD4 T cells": "#674A9C",
-            "CD8 T cells": "#79838A",
-            "B cells": "#668C61",
-            "NK cells": "#8AA20A",
-            "Monocytes": "#D1DC1F",
-            "DC": "#AB674F",
-            "Interstitial Mph perivascular": "#ff00a2",
-            "Megakaryocytes": "#d68a1c",
-        }
-    elif color_key == "ann_level_2":
-        # paolo
-        palette = {
-            "Cartilages": "#0B4B19",
-            "Stromal0": "#99D6A9",
-            "Stromal1": "#1B8F76",
-            "Stromal2": "#9DAF07",
-            "Osteoblasts": "#4CAD4C",
-            "Progenitor cells": "#03045e",
-            "Schwann cells": "#95ccff",
-            "Lymphatic EC": "#F78896",
-            "Vascular EC": "#E788C2",
-            "Pericytes": "#BBD870",
-            "Satellites": "#CB7647",
-            "Skeletal muscle": "#926B54",
-            "Neural crest": "#E3D9AC",
-            "Olf. ensh. glia": "#cd6889",
-            "Glia progenitors": "#FF4500",
-            "ALK neurons": "#95819F",
-            "NOS1 neurons": "#95819F",
-            "Olfactory HBCs": "#E41A1C",
-            "Respiratory HBCs": "#C82C73",
-            "Olf. microvillars": "#efe13c",
-            "Multiciliated": "#1f618d",
-            "Deuterosomal": "#3498db",
-            "Sustentaculars": "#C09ACA",
-            "GBCs": "#F48B5A",
-            "preOSNs": "#E69F00",
-            "iOSNs": "#f05b43",
-            "mOSNs": "#33b8ff",
-            "Neural progenitors": "#6A0B78",
-            "Excitatory neurons": "#706fd3",
-            "Inhibitory neurons": "#800EF1",
-            "GnRH neurons": "#2EECDB",
-            "Myeloid": "#736376",
-            "Microglia": "#91BFB7",
-
-            #"Cycling HBCs": "#C2A523",
-            #"Tufts": "#eb10fd",
-            #"Duct": "#efe13c",
-        }
-    elif color_key == "ann_level_1":
-        palette = {
-            "Progenitor cells": "#03045e",
-            "Olfactory epithelium": "#EF1B4F",
-            "Respiratory epithelium": "#5562B7",
-            "Neurons": "#6E5489",
-            "Glial": "#919976",
-            "Stroma": "#009E73",
-            "Immune": "#2EECDB",
-            "Vasculars": "#CC79A7",
-            "Myocytes": "#803800",
-            "Immune": "#736376",
-            "Pericytes": "#BBD870",
-        }
-    elif color_key == "fluo":
-        palette = {
-            "blue": "#382aff",
-            "green": "#82ff78",
-            "purple": "#a900d7",
-            "orange": "#ffa421",
-            "darkblue": "#006b94",
-            "red": "#c70015",
-            "cyan": "#00b5b9",
-            "brown": "#954600",
-            "yellow": "#e9ffae",
-            "pink": "#ff9eda",
-        }
-    elif color_key == "leiden":  # default is 40 colors returned
-        l = list(range(0, 39, 1))
-        ll = list(map(str, l))
-        palette = dict(zip(ll, sns.color_palette("husl", 40).as_hex()))
-
-    palette["others"] = "#ffffff"
-
-    return palette
-
-
 def plot_qc(sdata: sd.SpatialData):
     """Plot quality control analysis.
 
@@ -536,28 +416,28 @@ def plot_qc(sdata: sd.SpatialData):
         SpatialData object.
 
     """
-    dataset_id = sdata.table.obs.dataset_id.unique().tolist()[0]
+    dataset_id = sdata['table'].obs.dataset_id.unique().tolist()[0]
 
     fig, ax = plt.subplots(figsize=(6, 5))
     plt.subplot(2, 2, 1)
     bins = np.logspace(0, 4, 100)
-    plt.hist(sdata.table.obs["volume"], alpha=0.2, bins=bins, label=dataset_id, color="red")
+    plt.hist(sdata['table'].obs["volume"], alpha=0.2, bins=bins, label=dataset_id, color="red")
     plt.xlabel("Volume")
     plt.ylabel("Cell count")
     plt.xscale("log")
     # Transcript count by cell
     plt.subplot(2, 2, 2)
     bins = np.logspace(0, 4, 100)
-    plt.hist(sdata.table.obs["transcript_count"], alpha=0.2, bins=bins, label=dataset_id, color="red")
+    plt.hist(sdata['table'].obs["transcript_count"], alpha=0.2, bins=bins, label=dataset_id, color="red")
     plt.xlabel("Transcript count")
     plt.ylabel("Cell count")
     plt.xscale("log")
     plt.yscale("log")
     plt.subplot(2, 2, 3)
-    barcodeCount = sdata.table.obs["transcript_count"]
+    barcodeCount = sdata['table'].obs["transcript_count"]
     sns.distplot(barcodeCount, label=dataset_id, color="red")
     ax1 = plt.subplot(2, 2, 4)
-    sc.pl.violin(sdata.table.obs, keys="transcript_count", ax=ax1)
+    sc.pl.violin(sdata['table'].obs, keys="transcript_count", ax=ax1)
     plt.tight_layout()
 
 
@@ -594,7 +474,7 @@ def plot_per_groups(adata, clust_key, size=60, is_spatial=False, frameon=False, 
         # not working !....
         tmp.uns["spatial"] = tmp.obsm["spatial"]
         
-        #sc.pl.embedding(sdata.table, "spatial", color=key, size=1, ax=axs[1])
+        #sc.pl.embedding(sdata['table'], "spatial", color=key, size=1, ax=axs[1])
         
         #sq.pl.spatial_scatter(
         #    tmp,
@@ -605,6 +485,449 @@ def plot_per_groups(adata, clust_key, size=60, is_spatial=False, frameon=False, 
         #    legend_loc=legend_loc,
         #    **kwargs,
         #)
+        
+def scis_prop(
+    adata: ad.AnnData,
+    sample_col: str = "sample",
+    condition_col: str = 'condition',
+    group_col: str = "cell_type",
+    group_only: str | list = None,
+    group_top: int = None,
+    strip_hue_col: str = None,
+    palette_box: dict = None,
+    palette_strip: dict = None,
+    condition_order: list = None, # ["CTRL", "PAH"],  # might be possible to provide more conditions
+    stat_test: str = "t-test_ind", #t-test_ind, t-test_welch, t-test_paired, Mann-Whitney, Mann-Whitney-gt, Mann-Whitney-ls, Levene, Wilcoxon, Kruskal, Brunner-Munzel
+    ncols: int = 4,
+    sub_figsize: tuple = (5,5),
+    hspace: float = 0.5, 
+    wspace: float = 0.5,
+    save: str | None = None,
+    rotate:int = 0,
+    bbox_to_anchor=(0.98, 0.5),
+):
+    """Compute per zone celltype proportion between 2 conditions using replicate for statistical testing
+
+    Parameters
+    ----------
+    adata
+        AnnData object.
+    group_by
+        group
+    group_only
+        just plot this group
+    split_by
+        x value split_by
+    split_only
+        focus on this split_by
+    split_by_top
+        top split_by to consider
+    replicate
+        replicate key in adata.obs
+    condition
+        condition key in adata.obs
+    condition_order
+        tuple of the x conditions to test
+    
+    figsize
+        figure size
+    Returns
+    -------
+
+    """
+    def make_pairs(data, condition_col, condition_order=None):
+        levels = data[condition_col].dropna().unique().tolist()
+        if condition_order is not None:
+            levels = [x for x in condition_order if x in levels]
+        if len(levels) < 2:
+            return []
+        return list(combinations(levels, 2))
+
+    df = adata.obs[[sample_col, condition_col, group_col]]
+    nb_cells = df.groupby([sample_col, condition_col, group_col]).size().unstack()
+    nb_cells = nb_cells.div(nb_cells.sum(axis=1), axis=0).reset_index()
+    nb_cells = nb_cells.melt(id_vars=[sample_col, condition_col])
+    nb_cells = nb_cells.dropna()
+
+    if isinstance(group_only, str):
+        group_only = [group_only]
+
+    if group_only:
+        nb_cells = nb_cells[nb_cells[group_col].isin(group_only)]
+    elif group_top:
+        group_only = list(df[group_col].value_counts().head(group_top).index)
+        nb_cells = nb_cells[nb_cells[group_col].isin(group_only)]
+    else:
+        group_only = list(df[group_col].unique())
+
+    if not condition_order:
+        condition_order = list(adata.obs[condition_col].unique())
+
+    nrows = (len(group_only) + ncols - 1) // ncols
+
+    fig = plt.figure(figsize=(sub_figsize[0]*ncols, sub_figsize[1]*nrows))
+    plt.subplots_adjust(hspace=hspace, wspace=wspace)
+
+    legend_handles = None
+    legend_labels = None
+
+    for i, group in enumerate(group_only, 1):
+        ax = fig.add_subplot(nrows, ncols, i)
+        data_sub = nb_cells[nb_cells[group_col] == group]
+
+        sns.boxplot(
+            data=data_sub,
+            x=condition_col,
+            y="value",
+            order=condition_order,
+            width=0.7,
+            # gap=0.1,
+            showfliers=False,
+            linewidth=0.2,
+            ax=ax,
+            palette=palette_box
+        )
+
+        if strip_hue_col:
+            strip_df = adata.obs[[sample_col, strip_hue_col]].drop_duplicates()
+            st_dict = dict(zip(strip_df[sample_col], strip_df[strip_hue_col].astype(str)))
+            data_sub = data_sub.copy()
+            data_sub[strip_hue_col] = data_sub[sample_col].map(st_dict)
+            sns.stripplot(
+                data=data_sub,
+                x=condition_col,
+                y="value",
+                hue=strip_hue_col,
+                palette=palette_strip,
+                dodge=False,
+                jitter=0.12,
+                size=6,
+                linewidth=0.2,
+                edgecolor="black",
+                ax=ax,
+                legend=(legend_handles is None)
+            )
+        else:
+            sns.stripplot(
+                data=data_sub,
+                x=condition_col,
+                y="value",
+                palette=palette_box,
+                dodge=False,
+                jitter=0.12,
+                size=6,
+                linewidth=0.2,
+                edgecolor="black",
+                ax=ax,
+                legend=(legend_handles is None)
+            )
+        if strip_hue_col and i==1:
+            legend_handles, legend_labels = ax.get_legend_handles_labels()
+            ax.legend_.remove()
+        pairs = make_pairs(data_sub, condition_col, condition_order)
+        
+        if pairs:
+            annotator = Annotator(
+                ax, pairs, data=data_sub,
+                x=condition_col, y="value",
+                order=condition_order
+            )
+            annotator.configure(
+                test=stat_test,
+                text_format="star",
+                hide_non_significant=True,
+                line_width=0.2,
+                text_offset=0.15,
+                pvalue_thresholds=[
+                    [1e-4, "****"],
+                    [1e-3, "***"],
+                    [1e-2, "**"],
+                    [0.05, "*"]]
+            )
+            annotator.apply_and_annotate()
+
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.set_title(group)
+        ax.set_xlabel("")
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=rotate) #, size=6)
+
+        if i%ncols == 1:
+            ax.set_ylabel("Proportion")
+        else:
+            ax.set_ylabel("")
+    
+    if strip_hue_col and legend_handles:
+        fig.legend(
+            legend_handles,
+            legend_labels,
+            title=strip_hue_col,
+            loc="center right",
+            frameon=True,
+            bbox_to_anchor=bbox_to_anchor,
+            fontsize=12,    
+            title_fontsize=14  
+        )
+    if isinstance(save, str):
+        plt.savefig(save, bbox_inches="tight")
+    plt.show()
+
+
+
+def scis_prop_OLD(
+    adata: ad.AnnData,
+    sample_col: str = "sample",
+    condition_col: str = 'condition',
+    group_col: str = "cell_type",
+    group_only: str | list = None,
+    group_top: int = None,
+    strip_hue_col: str = None,
+    palette_box: dict = None,
+    palette_strip: dict = None,
+    condition_order: list = None, # ["CTRL", "PAH"],  # might be possible to provide more conditions
+    stat_test: str = "t-test_ind", #t-test_ind, t-test_welch, t-test_paired, Mann-Whitney, Mann-Whitney-gt, Mann-Whitney-ls, Levene, Wilcoxon, Kruskal, Brunner-Munzel
+    figsize: tuple = (6, 3),
+    title: str = None,
+    save: str | None = None,
+):
+    """Compute per zone celltype proportion between 2 conditions using replicate for statistical testing
+
+    Parameters
+    ----------
+    adata
+        AnnData object.
+    group_by
+        group
+    group_only
+        just plot this group
+    split_by
+        x value split_by
+    split_only
+        focus on this split_by
+    split_by_top
+        top split_by to consider
+    replicate
+        replicate key in adata.obs
+    condition
+        condition key in adata.obs
+    condition_order
+        tuple of the x conditions to test
+    
+    figsize
+        figure size
+    Returns
+    -------
+
+    """
+    # sns.set_theme(style="whitegrid", palette="pastel")
+    df = adata.obs[[sample_col, condition_col, group_col]]
+
+    nb_cells = df.groupby([sample_col, condition_col, group_col]).size().unstack()
+    nb_cells = nb_cells.div(nb_cells.sum(axis=1), axis=0).reset_index()
+    nb_cells = nb_cells.melt(id_vars=[sample_col, condition_col])
+    nb_cells = nb_cells.dropna()
+
+    if isinstance(group_only, str):
+        group_only = [group_only]
+
+    if group_only:
+        nb_cells = nb_cells[nb_cells[group_col].isin(group_only)]
+    elif group_top:
+        group_only = list(df[group_col].value_counts().head(group_top).index)
+        nb_cells = nb_cells[nb_cells[group_col].isin(group_only)]
+    else:
+        group_only = list(df[group_col].unique())
+
+    if not condition_order:
+        condition_order = list(adata.obs[condition_col].unique())
+
+    pairs_comb = list(combinations(condition_order,2))
+    pairs = []
+
+    for grp in group_only:
+        for prs in pairs_comb:
+            conds = nb_cells[nb_cells[group_col] == grp][condition_col].unique()
+            if (prs[0] in conds) and (prs[1] in conds):
+                pairs.append(((grp, prs[0]), (grp, prs[1])))
+            else:
+                print(f'paire {prs} in {grp} not exists')
+
+    hue_plot_params = {
+        "data": nb_cells,
+        "x": group_col,
+        "y": "value",
+        "order": group_only,
+        "hue": condition_col,
+        "hue_order": condition_order,
+        "palette": palette_box,
+    }
+
+    if len(pairs) > 0:
+        _, ax = plt.subplots(1, 1, figsize=figsize)
+        sns.boxplot(ax=ax, **hue_plot_params, boxprops={"alpha": 0.8}, showfliers=False, linecolor= 'black', linewidth=0.2, gap=0.3, width=.5)
+        if strip_hue_col:
+            strip_df = adata.obs[[sample_col, strip_hue_col]].drop_duplicates()
+            st_dict = dict(zip(strip_df[sample_col], strip_df[strip_hue_col].astype(str)))
+            nb_cells[strip_hue_col] = nb_cells[sample_col].map(st_dict)
+            hue_striplot_params = {
+                "data": nb_cells,
+                "x": group_col,
+                "y": "value",
+                "order": group_only,
+                "hue": strip_hue_col,
+                # "hue_order": strip_order,
+                "palette": palette_strip,
+            }
+            sns.stripplot(ax=ax, **hue_striplot_params, dodge=True, edgecolor="black", linewidth=0.2, size=5)
+        else: 
+            sns.stripplot(ax=ax, **hue_plot_params, dodge=True, edgecolor="black", linewidth=0.2, size=5)
+
+        annotator = Annotator(ax, pairs, **hue_plot_params)
+        annotator.configure(
+            test=stat_test, 
+            text_format="star",
+            hide_non_significant=True,
+            text_offset=0.2,
+            line_width = 0.2,
+            pvalue_thresholds=[[1e-4, "****"], [1e-3, "***"], [1e-2, "**"], [0.05, "*"]],  # removing ns as won't be shown
+        )
+        annotator.apply_and_annotate()
+        
+        if strip_hue_col:
+            plt.legend(bbox_to_anchor=(1.03, 1), loc=2, borderaxespad=0.0)
+        else:
+            handles, labels = ax.get_legend_handles_labels()
+            plt.legend(
+                handles[0:len(condition_order)], labels[0:len(condition_order)], 
+                bbox_to_anchor=(1.03, 1), loc=2, borderaxespad=0.0)
+
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=90, size=6)
+        # ax.set_yticklabels(ax.get_yticklabels(), size=6)
+        # ax.xaxis.grid(True)
+        ax.yaxis.grid(True)
+        ax.set(ylabel="")
+        ax.set_title(title)
+        plt.tight_layout()
+
+        if isinstance(save, str):
+            plt.savefig(save, bbox_inches="tight")
+        plt.show()
+
+
+
+# def scis_prop(
+#     adata: ad.AnnData,
+#     group_by: str = "scmusk_T4",
+#     group_only: str = "",
+#     split_by: str = "anatomy",
+#     split_only: str = "",
+#     split_by_top: int = 5,
+#     test="Mann-Whitney",
+#     replicate: str = "sample",
+#     condition: str = "group",
+#     condition_order: tuple = ["CTRL", "PAH"],  # might be possible to provide more conditions
+#     figsize: tuple = (6, 3),
+#     rotation = 0,
+#     size = 16,
+#     xlegend = 'Cell types',
+#     **kwargs,
+# ):
+#     """Compute per zone celltype proportion between 2 conditions using replicate for statistical testing
+
+#     Parameters
+#     ----------
+#     adata
+#         AnnData object.
+#     group_by
+#         group
+#     group_only
+#         just plot this group
+#     split_by
+#         x value split_by
+#     split_only
+#         focus on this split_by
+#     split_by_top
+#         top split_by to consider
+#     replicate
+#         replicate key in adata.obs
+#     condition
+#         condition key in adata.obs
+#     condition_order
+#         tuple of the x conditions to test
+    
+#     figsize
+#         figure size
+#     Returns
+#     -------
+
+#     """
+#     sns.set_theme(style="whitegrid", palette="pastel")
+#     l = list(adata.obs[group_by].unique())
+#     if group_only:
+#         l = [group_only]
+
+#     for n in l:
+#         print(n)
+#         df = adata[adata.obs[group_by] == n].obs[[replicate, condition, split_by]]
+#         df2 = df.groupby([replicate, condition, split_by])[split_by].count().unstack()
+#         df2 = df2.div(df2.sum(axis=1), axis=0).reset_index()
+#         df2 = df2.melt(id_vars=[replicate, condition])
+#         df2 = df2.dropna()
+#         df2 = df2[df2.value > 0]
+        
+#         hits = list(df[split_by].value_counts().head(split_by_top).keys())
+#         df2 = df2[df2[split_by].isin(hits)]
+
+#         if split_only:
+#             df2 = df2[df2[split_by].isin(split_only)]
+#             hits = split_only
+
+#         split_order = hits
+
+#         pairs = []
+#         for s in split_order:
+#             if len(df2[df2[split_by] == s][condition].unique()) > 1:
+#                 pairs.append([(s, condition_order[0]), (s, condition_order[1])])
+#                 if(len(condition_order) > 2):
+#                     pairs.append([(s, condition_order[0]), (s, condition_order[2])])
+#                     pairs.append([(s, condition_order[1]), (s, condition_order[2])])
+
+#         hue_plot_params = {
+#             "data": df2,
+#             "x": split_by,
+#             "y": "value",
+#             "order": split_order,
+#             "hue": condition,
+#             "hue_order": condition_order,
+#             # "palette": pal_group,
+#         }
+
+#         if len(pairs) > 0:
+#             fig, ax = plt.subplots(1, 1, figsize=figsize)
+#             sns.boxplot(ax=ax, **hue_plot_params, showfliers=False, linewidth=0.5, **kwargs)
+#             # sns.boxplot(ax=ax, **hue_plot_params, boxprops={"alpha": 0.8}, showfliers=False, linewidth=0.5)
+#             sns.stripplot(ax=ax, **hue_plot_params, dodge=True, edgecolor="black", linewidth=0.5, size=3, **kwargs)
+
+#             annotator = Annotator(ax, pairs, **hue_plot_params)
+#             annotator.configure(test= test, text_format="star")
+#             annotator.apply_and_annotate()
+
+#             handles, labels = ax.get_legend_handles_labels()
+#             l = plt.legend(handles[0:len(condition_order)], 
+#                            labels[0:len(condition_order)], 
+#                            bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.0)
+
+#             ax.set_xticklabels(ax.get_xticklabels(), 
+#                                rotation=rotation, 
+#                                size=size)
+#             ax.set_yticklabels(ax.get_yticklabels(), size=size)
+#             ax.xaxis.grid(True)
+#             ax.yaxis.grid(True)
+#             ax.set(ylabel="")
+#             ax.set_title(str(n))
+#             plt.xlabel(xlegend, fontsize=size)
+#             plt.ylabel('Proportions', fontsize=size)
+#             plt.tight_layout()
 
 
 def legend_without_duplicate_labels(figure):
@@ -621,760 +944,3 @@ def legend_without_duplicate_labels(figure):
     handles, labels = plt.gca().get_legend_handles_labels()
     by_label = dict(zip(labels, handles))
     figure.legend(by_label.values(), by_label.keys(), loc="center left", bbox_to_anchor=(1.05, 0.5), fontsize=6, ncol=1)
-
-
-def barplotDE(
-    adata: ad.AnnData,
-    groupby: str = 'cell_type',
-    splitby: str = 'condition',
-    # y_key: str = 'log2FoldChange',
-    palette: tuple | str = 'deep',
-    key: str = 'results',
-    # uns_key: str = 'pseudobulk',
-    title: str = None,
-    padj: float = 0.05,
-    groups: list | None = None,
-    logFC: float = 0.5,
-    figsize: tuple = (8,3),
-    alpha: float = 0.5,
-    save: bool = False,
-    save_format: str = 'pdf',
-    ):
-    res_de = adata.uns['scispy'][key].copy()
-    # to change
-
-    if groups:
-        print("Filtrer groups...")
-        res_de = res_de[res_de[groupby].isin(groups)]
-
-    res_de["updown"] = np.where(
-            (res_de["padj"] <= padj) & (res_de["log2FoldChange"] >= logFC), "Up",
-            np.where((res_de["padj"] <= padj) & (res_de["log2FoldChange"] <= -logFC), "Down", "NS")
-        )
-    genes_DE_signif = res_de[res_de["updown"] != "NS"]
-    # cell_types = genes_DE_signif[groupby].unique()
-    # all_combinations = pd.MultiIndex.from_product([cell_types, ["Up", "Down"]], names=[groupby, "updown"])
-    # df_m = genes_DE_signif.groupby([groupby, "updown"]).size().reindex(all_combinations, fill_value=0).reset_index(name="value") 
-     
-    # up_df = df_m[df_m["updown"] == "Up"].reset_index(drop=True)
-    # down_df = df_m[df_m["updown"] == "Down"].reset_index(drop=True)
-    
-    if len(genes_DE_signif[splitby].unique()) > 1 : 
-        print("More than one pairwise condition.")
-    for cond in genes_DE_signif[splitby].unique():
-        print(cond)
-        sub_cond = genes_DE_signif[genes_DE_signif[splitby] == cond]
-            
-        cell_types = sub_cond[groupby].unique()
-        all_combinations = pd.MultiIndex.from_product([cell_types, ["Up", "Down"]], names=[groupby, "updown"])
-        df_m = sub_cond.groupby([groupby, "updown"]).size().reindex(all_combinations, fill_value=0).reset_index(name="value") 
-            
-        up_df = df_m[df_m["updown"] == "Up"].reset_index(drop=True)
-        down_df = df_m[df_m["updown"] == "Down"].reset_index(drop=True)
-    
-        plt.figure(figsize=figsize)
-        sns.barplot(data=up_df, x=groupby, y="value", 
-                    hue=groupby, dodge="auto", palette=palette)
-        sns.barplot(data=down_df, x=groupby, y=-down_df["value"], 
-                    hue=groupby, dodge="auto", palette=palette, alpha=alpha)
-            
-        # Add labels
-        for i, row in up_df.iterrows():
-            if row["value"] != 0:
-                plt.text(i, row["value"]  , str(row["value"]), ha='center', va='bottom', fontsize=10)
-            
-        for i, row in down_df.iterrows():
-            if row["value"] != 0:
-                plt.text(i, -row["value"] , str(row["value"]), ha='center', va='top', fontsize=10)
-            
-        # Customize plot
-        plt.axhline(0, color="grey", linestyle="--")
-        plt.xticks(rotation=45, ha='right', fontsize=12)
-        plt.xlabel("Cell types")
-        plt.ylabel("Number of genes DE")
-        cond1, cond2 = cond.split('_')
-
-        if not title:
-            title = f'Number of genes DE up and down in {cond1} versus {cond2} for each cell type'
-
-        plt.title(title, fontsize=14, fontweight='bold')
-        plt.show()
-        
-
-def stripPlotDE(
-    adata: ad.AnnData,
-    x_key: str = 'cell_type',
-    y_key: str = 'log2FoldChange',
-    splitby = "condition",
-    palette: tuple | str = "deep",
-    key: str = 'results',
-    groups: list | None = None,
-    # title: str = None,
-    padj: float = 0.05,
-    logFC: float = 0.5,
-    baseMean: float = 50.0,
-    figsize: tuple = (8,3),
-    save: bool = False,
-    top: int = 5,
-    order: list | None = None,
-    save_format: str = 'pdf',
-):
-    """Plot DEG dataframe from pseudobulk analysis
-
-    Parameters
-    ----------
-    adata
-        anndata object
-    x_key
-        x key
-    y_key
-        y key
-    key
-        key in adata.uns['scispy'] storing the results to plot
-    padj
-        p adjusted to be significant
-    log2FoldChange
-        log2FoldChange to be significant
-    figsize
-        figure size
-    save
-        wether or not to save the figure
-    save_format
-        pdf or png
-    """
-    df = adata.uns['scispy'][key].copy()
-    df["significative"] = np.where(
-            (df["padj"] <= padj) & (df["log2FoldChange"].abs() >= logFC) & (df["baseMean"] >= baseMean),
-            1, 0)
-    # df["significative"] = np.where(
-    #     (df["padj"] < padj) & (df["log2FoldChange"].abs() > logFC) & (df["baseMean"].abs() > baseMean),
-    #     "Sig", "NS"
-    # )
-    
-    if len(df[splitby].unique()) > 1 : 
-        print("More than one pairwise condition.")
-
-    for cond in df[splitby].unique():
-        print(cond)
-        sub_df = df[df[splitby] == cond]
-        
-        fig, ax = plt.subplots(1, 1, figsize=figsize)
-        if groups:
-            groups_2= groups
-            sub_df = sub_df[sub_df[x_key].isin(groups)]
-        else:
-            groups_2 = sub_df.loc[sub_df["significative"] == 1, x_key].unique()
-            sub_df = sub_df[sub_df[x_key].isin(groups_2)]
-        
-        tmp = sub_df[sub_df['significative']==1].reset_index(drop=True)
-        order = list(tmp.groupby([x_key]).groups.keys())
-
-        sns.stripplot(data=sub_df[sub_df['significative']==1], 
-                    x=x_key, y=y_key, hue=x_key, palette=palette,
-                    orient='v', order=order, alpha=0.8, size=5, linewidth=1, 
-                    # edgecolor='black', 
-                    jitter=0.4)
-        
-        tmp["rank"] = tmp.groupby(x_key)["log2FoldChange"].rank(method="first", ascending=False)
-        tmp["top_bottom"] = np.where(
-                tmp["rank"] <= top, "Top",
-                np.where(tmp["rank"] > (tmp.groupby(x_key)["log2FoldChange"].transform("count") - top), 
-                        "Bottom", None))
-        
-        # Label the top points within each group and adjust them
-        texts = []
-        for collection, (_, group_data) in zip(ax.collections, tmp.groupby([x_key])):
-            for i, (x, y) in enumerate(collection.get_offsets()):
-                if group_data.iloc[i]['top_bottom'] is not None:
-                    texts.append(ax.text(x, y, 
-                            group_data.iloc[i]['gene'], 
-                            ha='center', 
-                            va='bottom', color='black', 
-                            size='x-small' # "small"
-                            ))
-        if len(texts) > 0:
-            at.adjust_text(texts, 
-                        expand=(2, 2),
-                        arrowprops=dict(arrowstyle='->', color='black'), ax=ax)
-
-        sns.stripplot(data=sub_df[sub_df['significative']==0], 
-                    x=x_key, y=y_key, 
-                    color="grey", 
-                    orient='v', alpha=0.6, size=2, 
-                    jitter=0.4)
-
-        ax.tick_params(axis='x', rotation=45, size=12) #  ha='right'
-        cond1, cond2 = cond.split('_')
-        ax.set_title(f'Stripplot of the genes DE in {cond1} versus {cond2} for each cell type')
-
-    # save figure
-    if save is True:
-        if save_format == "pdf":
-            print("saving plot_pseudobulk.pdf")
-            plt.savefig("plot_pseudobulk.pdf", bbox_inches="tight")
-        elif save_format == "png":
-            print("saving plot_pseudobulk.png")
-            plt.savefig("plot_pseudobulk.png", dpi=300, bbox_inches="tight")
-
-
-def maplot(
-    adata: ad.AnnData,
-    genes: list | None = None,
-    key: str = 'results',
-    thr_stat: float =0.5,
-    thr_sign: float= 0.05,
-    top: int = 10,
-    x: str = "baseMean",
-    y: str = "log2FoldChange",
-    color_pos: str = "#D62728",
-    color_neg: str = "#1F77B4",
-    color_null: str = "gray",
-    figsize: tuple = (8,6),
-    fig_title: str = "MA plot",
-):  
-    if 'scispy' not in adata.uns.keys():
-        print('Run DEA before plotting...')
-        return
-    df = adata.uns['scispy'][key].copy()
-    df["log2_mean"] = np.log2(df[x])
-
-    up_msk = (df[y] >= thr_stat) & (df["padj"] <= thr_sign) 
-    dw_msk = (df[y] <= -thr_stat) & (df["padj"] <= thr_sign)
-    not_sign = ~(up_msk | dw_msk)
-    
-    if type(genes) == list:
-        signs = df[df['gene'].isin(genes)]
-    else:
-        signs = df[up_msk | dw_msk].sort_values("padj", ascending=False)
-        signs = signs.iloc[:top]
-
-    plt.figure(figsize=figsize)
-    sc_mid = plt.scatter(df.loc[not_sign, "log2_mean"], df.loc[not_sign, y], color=color_null, alpha=0.6, s=20, label=f"Non-significant ({not_sign.sum()})")
-    sc_up = plt.scatter(df.loc[up_msk, "log2_mean"], df.loc[up_msk, y], color=color_pos, alpha=0.7, s=20, label=f"Up ({up_msk.sum()})")
-    sc_down = plt.scatter(df.loc[dw_msk, "log2_mean"], df.loc[dw_msk, y], color=color_neg, alpha=0.7, s=20, label=f"Down ({dw_msk.sum()})")
-
-    ymax =  df[y].abs().max() + 0.5
-    xmax = df["log2_mean"].max() + 0.5
-
-    plt.ylim(-ymax, ymax)
-    plt.xlim(0, xmax)
-    plt.axhline(y=thr_stat, color='black', linestyle='--', linewidth=1)
-    plt.axhline(y=-thr_stat, color='black', linestyle='--', linewidth=1)
-
-    texts = []
-    for x, y, s in zip(signs["log2_mean"], signs[y], signs['gene'], strict=False):
-        texts.append(
-            plt.text(x, y, s, 
-                    bbox=dict(boxstyle="round",
-                            facecolor='white', edgecolor='black',             
-                    ),
-                    fontweight = 'bold',
-                    size='small'))
-    if len(texts) > 0:
-        at.adjust_text(
-            texts, expand=(4, 4),
-            arrowprops={"arrowstyle": "->", "color": "black"})
-    plt.legend(
-        handles=[sc_up, sc_mid, sc_down],
-        loc='best', 
-        bbox_to_anchor=(0.81, 0., 0.5, 0.5))
-    plt.grid(True)
-    plt.title(fig_title)
-    plt.xlabel("Log2 mean expression")
-    plt.ylabel('Log2 fold change')
-    plt.show()
-
-
-def extract_sample(name, samples):
-    for s in samples:
-        if name.startswith(s):
-            return s
-    return None  
-
-    
-def filter_genes(df, thres):
-    padj_mask = df["padj"] <= thres["padj"]
-    lfc_mask = np.abs(df["log2FoldChange"]) >= thres["log2FoldChange"]
-    base_mask = df["baseMean"] >= thres["baseMean"]
-    pct_mask = (df["pct_1"] >= thres["pct"]) | (df["pct_2"] >= thres["pct"])
-
-    mask = padj_mask & lfc_mask & base_mask & pct_mask
-    return df.loc[mask, "gene"].unique()
-
-
-def plot_heatmap(
-    df_plot,
-    df_colors,
-    colors,
-    show_rownames: bool = True,
-    col_dendrogram: bool =True,
-    row_dendrogram: bool =True,
-    row_cluster: bool =True,
-    col_cluster: bool =True,
-    cmap="bwr",
-):
-    col_ha = pch.HeatmapAnnotation(
-        df=df_colors,
-        colors=colors,
-        legend=True,
-        legend_gap=5,
-        hgap=0.5,
-        axis=1)
-                                        
-    cluster = pch.ClusterMapPlotter(
-        data=df_plot,
-        top_annotation=col_ha,
-        # col_split=adata.obs[condition],
-        # col_split_gap=0.8,
-        label='values',
-        col_dendrogram=col_dendrogram,
-        row_dendrogram=row_dendrogram,
-        row_cluster=row_cluster,
-        col_cluster=col_cluster,
-        show_rownames=show_rownames,
-        show_colnames=True,
-        verbose=0,
-        legend_vpad=25,
-        cmap=cmap,  
-        plot =False,
-        plot_legend=False,
-        center=0, 
-        xticklabels_kws={'labelrotation':90}) 
-    return cluster
-
-
-def plot_DE(
-    adata: ad.AnnData,
-    colors: dict,
-    signs_thres: dict = {
-        'padj': 0.05,
-        'log2FoldChange': 0.5,
-        'baseMean': 50.0,
-        'pct': 0.0
-    },
-    groups_col: str | None = None,
-    replicate: str | None = None,
-    cell_type: str = 'cell_type',
-    groups: list | None = None,
-    # fill_na: str = 'grey',
-    # condition = 'condition',
-    cmap: str ='bwr',
-    top_volcano: int = 10,
-    figsize: tuple =  (20, 10),
-):
-    df = adata.uns['scispy']['results'].copy()
-    mtx = adata.uns["scispy"]["matrice"].copy()
-    
-    if not replicate:
-        replicate = adata.uns['scispy']['params']['replicate']
-    if not groups_col:
-        groups_key, condition = adata.uns['scispy']['params']['groups_col']
-    if not groups:
-        groups = df[cell_type].unique().tolist()
-
-    samples = adata.obs[replicate].unique().to_list()
-
-    for cell in groups:
-        print(cell)
-        sub_df = df[df[cell_type] == cell]
-        sub_df.index = sub_df['gene']
-        signs = filter_genes(sub_df, signs_thres)
-
-        if len(signs) > 1:
-            sub_mtx = mtx.loc[signs, mtx.columns.str.contains(f'_{cell}_')].T
-            adata = ad.AnnData(sub_mtx)
-            adata.obs["sample"] = adata.obs.index.map(lambda x: extract_sample(x, samples))
-            adata.obs[['celltype','condition']] = adata.obs_names.str.split('_', expand=True).to_frame(index=False)[[2,3]].values
-            
-            sc.pp.normalize_total(adata)
-            sc.pp.log1p(adata)
-            sc.pp.scale(adata, max_value=10)
-
-            df_plot = pd.DataFrame(adata.X.T, index=adata.var_names, columns=adata.obs['sample']) 
-            df_plot = df_plot.apply(pd.to_numeric, errors="coerce")
-
-            df_colors = pd.DataFrame(adata.obs[list(colors.keys())].values, 
-                        index=adata.obs['sample'],
-                        columns=list(colors.keys())) 
-            
-            if len(signs) <= 50:
-                show_rownames = True
-            else:
-                show_rownames = False
-
-            # PLOT
-            fig = plt.figure(figsize=figsize)
-            gs = gridspec.GridSpec(nrows=1, ncols=2, wspace=0.5, width_ratios=[1, 1])
-
-            ax1 = fig.add_subplot(gs[0])
-            cluster = plot_heatmap(
-                    df_plot,
-                    df_colors,
-                    colors,
-                    show_rownames=show_rownames,
-                    cmap=cmap
-                )
-            cluster.plot(ax=ax1, subplot_spec = gs[0])
-            cluster.plot_legends(ax=ax1)
-            ax1.set_title('Heatmap')
-
-            ax2 = fig.add_subplot(gs[1])
-            dc.pl.volcano(
-                sub_df, 
-                # figsize=(5,5),
-                x="log2FoldChange", 
-                y="padj", 
-                ax=ax2,
-                thr_stat=signs_thres['log2FoldChange'], 
-                thr_sign=signs_thres['padj'], 
-                top=top_volcano
-            )
-            ax2.set_title('Volcano plot')
-
-            fig.suptitle(cell, fontsize=18) #, y=0.99)
-            plt.show()
-
-
-# def heatmap_volcano(
-#     adata,
-#     sub_cell,
-#     signs,
-#     colors,
-#     title,
-#     thr_stat=0.5,
-#     thr_sign = 0.05,
-#     top=5,
-#     figsize=(20, 10),
-# ):
-#     if len(signs) >1 : 
-#         row_dendrogram =True
-#         col_dendrogram=True
-#         row_cluster=True
-#         col_cluster=True
-#     else:
-#         row_dendrogram=False
-#         col_dendrogram=False
-#         row_cluster=False
-#         col_cluster=False
-
-#     df_test = pd.DataFrame(adata[:,signs].X.T, index=adata[:,signs].var_names, columns=adata.obs_names) 
-#     df_test = df_test.apply(pd.to_numeric, errors="coerce")
-
-#     fig = plt.figure(figsize=figsize)
-#     gs = gridspec.GridSpec(nrows=1, ncols=2, wspace=0.4, width_ratios=[1.2, 0.9])
-
-#     ax1 = fig.add_subplot(gs[0])
-#     col_ha = pch.HeatmapAnnotation(df=adata.obs, 
-#                                 colors=colors,
-#                                 legend=True,
-#                                 legend_gap=5,
-#                                 hgap=0.5,
-#                                 axis=1)
-#     cluster = pch.ClusterMapPlotter(data=df_test,
-#                                 top_annotation=col_ha,
-#                                 # col_split=adata.obs[condition],
-#                                 # col_split_gap=0.8,
-#                                 label='values',
-#                                 col_dendrogram=col_dendrogram,
-#                                 row_dendrogram=row_dendrogram,
-#                                 row_cluster=row_cluster,
-#                                 col_cluster=col_cluster,
-#                                 show_rownames=True,
-#                                 show_colnames=True,
-#                                 verbose=0,
-#                                 legend_gap=5, 
-#                                 cmap="bwr",  
-#                                 plot =False,
-#                                 plot_legend=False,
-#                                 center=0, 
-#                                 xticklabels_kws={'labelrotation':-90}) 
-#     cluster.plot(ax=ax1, subplot_spec = gs[0])
-#     cluster.plot_legends(ax=ax1)
-#     ax1.set_title('Heatmap')
-
-#     ax2 = fig.add_subplot(gs[1])
-#     dc.pl.volcano(
-#         sub_cell, 
-#         # figsize=(5,5),
-#         x="log2FoldChange", 
-#         y="padj", 
-#         ax=ax2,
-#         thr_stat=thr_stat, 
-#         thr_sign=thr_sign, 
-#         top=top
-#     )
-#     ax2.set_title('Volcano plot')
-
-#     fig.suptitle(title, fontsize=18) #, y=0.99)
-#     plt.show()
-
- # plots: bool = False,
- # save: bool = False,
-# save_prefix: str = "decoupler",
-# figsize: tuple = (8,3),
-#     if save is True:
-# #         results_df.to_csv(save_prefix + "_" + ct + ".csv")
-# #         fig.savefig(save_prefix + "_" + ct + ".pdf", bbox_inches="tight")
-
-# def plot_DE(
-#     adata: ad.AnnData,
-#     colors: dict,
-#     # replicate = 'condition'
-#     condition = 'condition',
-#     cell_type: str = 'cell_type',
-#     top_volcano: int = 5,
-#     thr_stat: float = 0.5, 
-#     thr_sign: float = 0.05,
-#     min_pct: float = 0.3,
-#     min_base_mean: float = 50.0,
-#     fill_na: str = 'grey',
-#     cmap: str ='bwr',
-#     # col_cluster: bool = False,
-# ):
-#     """Heatmap and volcano plot from pseudobulk analysis
-
-#     Parameters
-#     ----------
-#     adata
-#         anndata object
-#     colors
-#         dict of colors for each metadata to plot in the heatmap
-#     condition
-#         column that refers to the condition comparison. Default, set to condition
-#     cell_type
-#         column that refers to the celltype column. Default, set to cell_type  
-#     key
-#         key in adata.uns['scispy'] storing the results to plot
-#     thr_sign
-#         p adjusted to be significant
-#     thr_stat
-#         log2FoldChange to be significant
-#     min_pct
-#         min pct.1 or pct.2 to be significant
-#     fill_na
-#         if colors not provide for one condition, put it in grey by default
-#     """
-#     results = adata.uns['scispy']['results']
-#     matrix = adata.uns["scispy"]["matrice"]
-#     celltypes = results[cell_type].unique()
-    
-#     for cell in celltypes:
-#         sub_mtx = matrix.loc[:,matrix.columns.str.contains(f'_{cell}_')].T
-#         adata = ad.AnnData(sub_mtx)
-#         adata.obs[['celltype','condition']] = adata.obs_names.str.split('_', expand=True).to_frame(index=False)[[2,3]].values
-#         # print(cell)
-#         sub_cell = results[results[cell_type] == cell]
-#         sub_cell.index = sub_cell['gene']
-
-#         signs = sub_cell.loc[
-#             (sub_cell['padj'] <= thr_sign) & 
-#             (np.abs(sub_cell['log2FoldChange']) >= thr_stat) &
-#             (sub_cell['baseMean'] >=min_base_mean) & 
-#             ((sub_cell['pct_1'] >= min_pct) | (sub_cell['pct_2']  >= min_pct)), 'gene'].unique()
-    
-#         col_colors = pd.DataFrame(adata.obs[condition].map(colors[condition]))
-#         col_colors['celltype'] = "Blue"
-#         col_colors = col_colors.fillna(fill_na)
-#         # row_colors #= row_colors[['celltype', 'condition']] 
-
-#         if len(signs) > 0:        
-#             sc.pp.normalize_total(adata)
-#             sc.pp.log1p(adata)
-#             sc.pp.scale(adata, max_value=10)
-
-#             # df_test = pd.DataFrame(adata[:,signs].X.T, index=adata[:,signs].var_names, columns=adata.obs_names) 
-#             # df_test = df_test.apply(pd.to_numeric, errors="coerce")
-
-#             heatmap_volcano(
-#                 adata,
-#                 sub_cell,
-#                 signs=signs,
-#                 colors=colors,
-#                 title = cell,
-#                 figsize=(20, 10),
-#                 thr_stat = thr_stat, 
-#                 thr_sign=thr_sign,
-#                 top=top_volcano,
-#             )
-
-
-
-def old_plot_DE(
-    adata: ad.AnnData,
-    colors: dict,
-    condition = 'condition',
-    cell_type: str = 'cell_type',
-    top_volcano: int = 5,
-    thr_stat: float = 0.5, 
-    thr_sign: float = 0.05,
-    min_pct: float = 0.3,
-    fill_na: str = 'grey',
-    cmap: str ='bwr',
-    col_cluster: bool = False,
-):
-    """Heatmap and volcano plot from pseudobulk analysis
-
-    Parameters
-    ----------
-    adata
-        anndata object
-    colors
-        dict of colors for each metadata to plot in the heatmap
-    condition
-        column that refers to the condition comparison. Default, set to condition
-    cell_type
-        column that refers to the celltype column. Default, set to cell_type  
-    key
-        key in adata.uns['scispy'] storing the results to plot
-    thr_sign
-        p adjusted to be significant
-    thr_stat
-        log2FoldChange to be significant
-    min_pct
-        min pct.1 or pct.2 to be significant
-    fill_na
-        if colors not provide for one condition, put it in grey by default
-    """
-    results = adata.uns['scispy']['results']
-    matrix = adata.uns["scispy"]["matrice"]
-    celltypes = results[cell_type].unique()
-    
-    for cell in celltypes:
-        sub_mtx = matrix.loc[:,matrix.columns.str.contains(f'_{cell}_')].T
-        adata = ad.AnnData(sub_mtx)
-        adata.obs[['celltype','condition']] = adata.obs_names.str.split('_', expand=True).to_frame(index=False)[[2,3]].values
-        print(cell)
-        sub_cell = results[results[cell_type] == cell]
-        sub_cell.index = sub_cell['gene']
-
-        signs = sub_cell.loc[(sub_cell['padj'] <= thr_sign) & (np.abs(sub_cell['log2FoldChange']) >= thr_sign) &
-            ((sub_cell['pct_1'] >= min_pct) | (sub_cell['pct_2']  >= min_pct)), 'gene'].unique()
-    
-        col_colors = pd.DataFrame(adata.obs[condition].map(colors[condition]))
-        col_colors['celltype'] = "Blue"
-        col_colors = col_colors.fillna(fill_na)
-        # row_colors #= row_colors[['celltype', 'condition']] 
-
-        if len(signs) > 0:        
-            sc.pp.normalize_total(adata)
-            sc.pp.log1p(adata)
-            sc.pp.scale(adata, max_value=10)
-
-            df_test = pd.DataFrame(adata[:,signs].X.T, index=adata[:,signs].var_names, columns=adata.obs_names) 
-            df_test = df_test.apply(pd.to_numeric, errors="coerce")
-            print(df_test.shape)
-            print(len(signs))
-
-            if len(signs) >1 : 
-                row_dendrogram =True
-            else:
-                row_dendrogram=False
-
-            g = sns.clustermap(
-                df_test, 
-                figsize=(7, 10),
-                row_cluster=row_dendrogram,
-                col_cluster=col_cluster,
-                cmap=cmap,
-                col_colors=col_colors, 
-                center=0,
-                colors_ratio=0.05,
-                )
-
-            g.fig.set_size_inches(15, 2+len(signs))
-            g.fig.subplots_adjust(right=0.45)
-            g.cax.set_position(Bbox.from_bounds(0, 0.85, 0.08, 0.15))  # now this works
-
-            ax = g.fig.add_axes([0.55, 0.05, 0.42, 0.92])
-            dc.pl.volcano(
-                sub_cell, 
-                figsize=(5,5),
-                x="log2FoldChange", 
-                y="padj", 
-                ax=ax,
-                thr_stat=0.5, 
-                thr_sign=0.05, 
-                top=top_volcano
-            )
-            # g.ax_heatmap.set_title(cell, fontsize=16, pad=20, y=1)
-            g.fig.suptitle(cell, fontsize=18, y=1.05)
-
-            plt.show()
-
-# def plot_pseudobulk(
-#     adata: ad.AnnData,
-#     x_key: str = 'scmusk',
-#     y_key: str = 'log2FoldChange',
-#     palette: tuple = None,
-#     key: str = 'results',
-#     title: str = None,
-#     padj: float = 0.05,
-#     log2FoldChange: float = 1,
-#     baseMean: float = 50,
-#     figsize: tuple = (8,3),
-#     save: bool = False,
-#     save_format: str = 'pdf',
-# ):
-#     """Plot DEG dataframe from pseudobulk analysis
-
-#     Parameters
-#     ----------
-#     adata
-#         anndata object
-#     x_key
-#         x key
-#     y_key
-#         y key
-#     key
-#         key in adata.uns['scispy'] storing the results to plot
-#     padj
-#         p adjusted to be significant
-#     log2FoldChange
-#         log2FoldChange to be significant
-#     figsize
-#         figure size
-#     save
-#         wether or not to save the figure
-#     save_format
-#         pdf or png
-#     """
-#     if palette is None:
-#         palette="deep"
-
-#     df = adata.uns['scispy'][key].copy()
-
-#     df['significative'] = 0
-#     df.loc[df.padj < padj, 'significative'] = 1
-#     df.loc[abs(df.log2FoldChange) < log2FoldChange, 'significative'] = 0
-#     df.loc[abs(df.baseMean) < baseMean, 'significative'] = 0
-
-#     fig, ax = plt.subplots(1, 1, figsize=figsize)
-#     tmp = df[df.significative==1]
-#     tmp = tmp.reset_index(drop=True)
-#     order = list(tmp.groupby([x_key]).groups.keys())
-
-#     sns.stripplot(data=tmp, x=x_key, y=y_key, hue=x_key, palette=palette,
-#                 orient='v', order=order, alpha=0.6, size=5, linewidth=1, edgecolor='black', jitter=0.4)
-
-#     grouped = tmp.groupby([x_key])
-#     # Label the points within each group
-#     for collection, (group_key, group_data) in zip(ax.collections, grouped):
-#         for i, (x, y) in enumerate(collection.get_offsets()):
-#             y_value = group_data.iloc[i]['index']
-#             ax.text(x, y+0.1, y_value, ha='left', va='bottom', color='grey', size='x-small')
-
-#     tmp = df[df.significative==0]
-#     sns.stripplot(data=tmp, x=x_key, y=y_key, color="grey", 
-#                 orient='v', alpha=0.6, size=2, jitter=0.4)
-
-#     ax.tick_params(axis='x', rotation=90)
-#     ax.set_title(title)
-
-#     # save figure
-#     if save is True:
-#         if save_format == "pdf":
-#             print("saving plot_pseudobulk.pdf")
-#             plt.savefig("plot_pseudobulk.pdf", bbox_inches="tight")
-#         elif save_format == "png":
-#             print("saving plot_pseudobulk.png")
-#             plt.savefig("plot_pseudobulk.png", dpi=300, bbox_inches="tight")

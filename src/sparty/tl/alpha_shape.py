@@ -273,45 +273,6 @@ def remove_long_links(
         return conns, dists
     else:
         adata.uns[neighs_key]["params"]["radius"] = threshold
-    # print(threshold)
-
-
-
-# def shape_max(shapes):
-#     max_area = 0
-#     max_id = 0
-#     for i in range(len(shapes.geoms)):
-#         if shapes.geoms[i].area > max_area:
-#             max_area = shapes.geoms[i].area
-#             max_id = i
-#     return shapes.geoms[max_id]
-# IF MULTIPOLYGON ==> BUT BETTER WITH JUST MAX AREA
-# shapeM = max(shape.geoms, key=lambda g: g.area)
-
-
-# def count_points_in_polygon(points, polygon, include_boundary=True):
-#     """
-#     Count how many points lie inside (or on the boundary of) a polygon.
-
-#     Args:
-#         points (list of tuple): List of (x, y) points.
-#         polygon_coords (list of tuple): List of (x, y) polygon vertices.
-#         include_boundary (bool): If True, count points on boundary as inside.
-
-#     Returns:
-#         int: Number of points inside the polygon.
-#     """
-#     count = 0
-#     for p in points:
-#         point = Point(p)
-#         if polygon.contains(point) or (include_boundary and polygon.touches(point)):
-#             count += 1
-#     return count
-# count_points_in_polygon(list_points, shapeM)
-# BUT BETTER WITH JUST sum du covers from shapely !!!
-# sum(shapely.covers(shapeM, list_points))
-# EVEN BETTER !!!!
-# shapely.covers(shapeM, list_points).sum()
 
 
 

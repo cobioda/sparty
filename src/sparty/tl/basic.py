@@ -16,7 +16,7 @@ from shapely.geometry import Polygon
 from shapely import LineString, Point, get_coordinates, affinity
 from spatialdata import SpatialData
 from spatialdata.models import PointsModel, ShapesModel
-from spatialdata.transformations import Affine, Identity, Translation, set_transformation
+from spatialdata.transformations import Affine, Identity, Translation, set_transformation, get_transformation, Sequence
 from statannotations.Annotator import Annotator
 import shapely
 from ..tl.unfolding import extendLine
@@ -290,14 +290,18 @@ def pseudobulk(
     pairwise: list | None = None,
     groups: list | None = None,
     key_added: str = 'results',
+    paired: bool = False,
     layer: str = "counts",
     min_cells: int = 5,
     min_counts: int = 100,
     min_count_gene: int = 10, 
     min_total_count_gene: int = 15,
+    design: str = None,
     digits: int = 3,
     shrink_LFC: bool = False,
+    join_by: str = '..',
     quiet: bool = True,
+
 ):
     """Decoupler pydeseq2 pseudobulk handler.
 
@@ -316,13 +320,15 @@ def pseudobulk(
     groups
         specify the cell types to work with
     key_added
-        The key added to `adata.uns['scispy']` result is saved to.
+        The key added to `adata.uns['sparty']` result is saved to.
     layer
         sdata.table count values layer
     min_cells
         minimum cell number to keep replicate
     min_counts
         minimum total count to keep replicate
+    design
+        Model design, default will be '~condition' parameters
     sign_thr
         significant value threshold
     lFCs_thr
@@ -339,12 +345,10 @@ def pseudobulk(
     Return a global pd.DataFrame containing the pseudobulk analysis for plotting.
     """
     # https://decoupler-py.readthedocs.io/en/latest/notebooks/pseudobulk.html
-    # sns.set(font_scale=0.5)  
-    adata.uns["scispy"] = {}
+    adata.uns["sparty"] = {}
     
     if groups is None:
         groups = adata.obs[groups_key].cat.categories.tolist()
-    # print(groups)
 
     if (conds is None) & (pairwise is None):
         conds = list(adata.obs[condition].cat.categories)
@@ -353,125 +357,123 @@ def pseudobulk(
         pairwise = list(itertools.combinations(conds, 2))
     elif (conds is None) & (pairwise != None):
         conds = list(set(itertools.chain(*pairwise)))
-    
-    # print(pairwise)
-    # print(conds)
-    
-    # if (conds is None):
-    #     conds = list(adata.obs[condition].cat.categories)
-    #     print(conds)
 
-    # if pairwise is None:
-    #     pairwise = list(itertools.combinations(conds, 2))
-    # else:
-    #     conds = list(set(itertools.chain(*pairwise)))
-    # print(pairwise)
-    # print(conds)
-
-    # conds.sort()
-    # conds = [reference_level, tested_level]
-    adata.uns['scispy']['params'] = {
+    adata.uns['sparty']['params'] = {
         'replicate': replicate,
         'groups_col': [groups_key, condition],
     }
-
     adconds = adata[(adata.obs[condition].isin(conds)) & (adata.obs[groups_key].isin(groups))].copy()
     
+    print("Build pseudobulk...")
     pdata = dc.pp.pseudobulk(
         adata=adconds,
         sample_col=replicate,  
-        # groups_col=groups_key,  
-        groups_col=[groups_key, condition],  
+        groups_col=[groups_key, condition],  # groups_col=groups_key,  
         layer=layer,
         mode="sum",
-        # min_cells=min_cells,
-        # min_counts=min_counts,
     )
     dc.pp.filter_samples(
         pdata, 
         min_cells=min_cells,
         min_counts=min_counts,
     )
-
-    # print(pdata)
-    adata.uns["scispy"]["matrice"] = pd.DataFrame(pdata.X.T, index=pdata.var_names, columns=pdata.obs_names) 
-    # dc.plot_psbulk_samples(pdata, groupby=[replicate, groups_key], figsize=figsize)
+    pdata.obs_names = pdata.obs[
+        [replicate, groups_key, condition]
+        ].astype(str).agg(join_by.join, axis=1).values
     
+    pdata.obs[f'{groups_key}_{condition}'] = pdata.obs[
+        [groups_key, condition]
+        ].astype(str).agg(join_by.join, axis=1).values
+
+    adata.uns["sparty"]["matrice"] = pd.DataFrame(pdata.X.T, index=pdata.var_names, columns=pdata.obs_names) 
+    # dc.plot_psbulk_samples(pdata, groupby=[replicate, groups_key], figsize=figsize)
+  
+    if not design:
+        if paired:
+            design = f"~{replicate} + {condition}"
+        else:
+            design = f"~{condition}"
+
     df_total = pd.DataFrame()
     
     for test, ref in pairwise:
-        print(f'Start pseudobulk by comparing {test} versus {ref} in the condition {condition}.')
+        print(f'Start pseudobulk by comparing {test} versus {ref} in the condition {condition}, with the design {design}.')
         for ct in tqdm(groups, total=len(groups), desc=groups_key):
-            sub = pdata[(pdata.obs[groups_key] == ct) & (pdata.obs[condition].isin([ref, test]))].copy()
-            # print(sub.obs[condition].unique())
-            
-            if sub.n_obs > 1: 
+            sub = pdata[
+                (pdata.obs[groups_key] == ct) & 
+                (pdata.obs[condition].isin([ref, test]))
+            ].copy()
+            sub.obs[condition] = sub.obs[condition].cat.remove_unused_categories()
+            # sub.obs[condition] = (
+            #     sub.obs[condition]
+            #     .astype("category")
+            #     .cat.remove_unused_categories()
+            # )            
+            if paired:   
+                nb_paired = (
+                    sub.obs
+                    .groupby(replicate)[condition]
+                    .nunique()
+                )
+                paired_donors = nb_paired[nb_paired == 2].index
+                sub = sub[sub.obs[replicate].isin(paired_donors)].copy()
+
+            conds = sub.obs[condition].unique()
+            rep_counts = sub.obs.groupby(condition)[replicate].nunique()
+
+            # if sub.n_obs > 4 & (len(sub.obs[condition].unique()) > 1): 
+            if (len(conds) == 2) and (rep_counts.min() >= 2):
                 dc.pp.filter_by_expr(
                     sub, 
                     group=condition, 
                     min_count=min_count_gene, 
                     min_total_count=min_total_count_gene
                 )
-                # sub = sub[:, genes].copy()
                 
-                # if (sub.n_vars > 0) & (len(sub.obs[condition].unique().tolist()) > 1):
-                if (sub.n_vars > 0) & (len(sub.obs[condition].unique()) > 1):
-                # if len(sub.obs[condition].unique().tolist()) > 1:
+                # if (sub.n_vars > 0) & (len(sub.obs[condition].unique()) > 1):
+                if sub.n_vars > 0 and sub.obs[replicate].nunique() >= 3: # at least 3 replicate and 1 gene
                     dds = DeseqDataSet(
                         adata=sub,
-                        design=f"~{condition}",
-                        # design_factors=condition,
-                        # ref_level=[condition, conds[1]],
+                        design=design,
                         refit_cooks=True,
                         quiet=quiet,
                     )
-                    
-                    if len(sub.obs[replicate].unique()) > 2:
-                    # if len(sub.obs[replicate].unique().tolist()) > 2:
-                        dds.deseq2()
-                        stat_res = DeseqStats(
-                            dds, 
-                            contrast=[condition, test, ref], 
-                            quiet=quiet)
-                        stat_res.summary()
-                        # print(stat_res.contrast_vector.index[1])
-                        if shrink_LFC:
-                            stat_res.lfc_shrink(stat_res.contrast_vector.index[1])
-                            # stat_res.lfc_shrink(coeff=condition+"[T."+conds[1]+"]")
-                        results_df = stat_res.results_df
+                    # if len(sub.obs[replicate].unique()) > 2:
+                    dds.deseq2()
+                    stat_res = DeseqStats(
+                        dds, 
+                        contrast=[condition, test, ref], 
+                        quiet=quiet)
+                    stat_res.summary()
+                    # print(stat_res.contrast_vector.index[1])
+                    if shrink_LFC:
+                        stat_res.lfc_shrink(stat_res.contrast_vector.index[1])
+                        # stat_res.lfc_shrink(coeff=condition+"[T."+conds[1]+"]")
+                    results_df = stat_res.results_df
 
-                        # sign_thr=0.05, lFCs_thr=0.5
-                        results_df["pvals"] = -np.log10(results_df["padj"])
-                        # up_msk = (results_df["log2FoldChange"] >= lFCs_thr) & (results_df["pvals"] >= -np.log10(sign_thr))
-                        # dw_msk = (results_df["log2FoldChange"] <= -lFCs_thr) & (results_df["pvals"] >= -np.log10(sign_thr))
-                        # signs = results_df[up_msk | dw_msk].sort_values("pvals", ascending=False)
-                        # signs = signs.iloc[:top_volcano]
-                        # signs = signs.sort_values("log2FoldChange", ascending=False)
-                        
-                        nb_cells_1 = int(sub.obs.loc[sub.obs[condition] == test, 'psbulk_cells'].sum())
-                        nb_cells_2 = int(sub.obs.loc[sub.obs[condition] == ref, 'psbulk_cells'].sum())
+                    # results_df["pvals"] = -np.log10(results_df["padj"])
+                    nb_cells_1 = int(sub.obs.loc[sub.obs[condition] == test, 'psbulk_cells'].sum())
+                    nb_cells_2 = int(sub.obs.loc[sub.obs[condition] == ref, 'psbulk_cells'].sum())
 
-                        results_df["cell_type"] = ct
-                        results_df["condition"] = test + "_" + ref
-                        results_df["cond_1"] = test
-                        results_df["cond_2"] = ref
-                        results_df['nbCellsTotal_1'] = nb_cells_1   
-                        results_df['nbCellsTotal_2'] = nb_cells_2 
-                        results_df['sum_1'] = sub[sub.obs[condition] == test].X.sum(axis=0)
-                        results_df['sum_2'] = sub[sub.obs[condition] == ref].X.sum(axis=0)
-                   
-                        mask_1 = (adconds.obs[groups_key] == ct) & (adconds.obs[condition] == test) & (adconds.obs[replicate].isin(sub.obs[replicate].unique()))
-                        mask_2 = (adconds.obs[groups_key] == ct) & (adconds.obs[condition] == ref) & (adconds.obs[replicate].isin(sub.obs[replicate].unique()))
-                        # print(adconds[mask_1])     
-                        # print(adconds[mask_2])      
+                    results_df["cell_type"] = ct
+                    results_df["condition"] = test + join_by + ref
+                    results_df["cond_1"] = test
+                    results_df["cond_2"] = ref
+                    results_df['nbCellsTotal_1'] = nb_cells_1   
+                    results_df['nbCellsTotal_2'] = nb_cells_2 
+                    results_df['sum_1'] = sub[sub.obs[condition] == test].X.sum(axis=0)
+                    results_df['sum_2'] = sub[sub.obs[condition] == ref].X.sum(axis=0)
+                
+                    mask_1 = (adconds.obs[groups_key] == ct) & (adconds.obs[condition] == test) & (adconds.obs[replicate].isin(sub.obs[replicate].unique()))
+                    mask_2 = (adconds.obs[groups_key] == ct) & (adconds.obs[condition] == ref) & (adconds.obs[replicate].isin(sub.obs[replicate].unique()))
 
-                        results_df['pct_1'] = np.round((adconds[mask_1, results_df.index].layers[layer] > 0).sum(axis=0) / nb_cells_1, decimals=digits).T
-                        results_df['pct_2'] = np.round((adconds[mask_2, results_df.index].layers[layer] > 0).sum(axis=0) / nb_cells_2, decimals=digits).T
+                    results_df['pct_1'] = np.round((adconds[mask_1, results_df.index].layers[layer] > 0).sum(axis=0) / nb_cells_1, decimals=digits).T
+                    results_df['pct_2'] = np.round((adconds[mask_2, results_df.index].layers[layer] > 0).sum(axis=0) / nb_cells_2, decimals=digits).T
 
-                        df_total = pd.concat([df_total, results_df.reset_index(names="gene")])
-                        # df_total = pd.concat([df_total, results_df.reset_index()])
+                    df_total = pd.concat([df_total, results_df.reset_index(names="gene")])
           
-    adata.uns["scispy"][key_added] = df_total.reset_index(drop=True)
+    adata.uns["sparty"][key_added] = df_total.reset_index(drop=True)
+    return
 
 
 # def pseudobulk(
@@ -509,7 +511,7 @@ def pseudobulk(
 #     groups
 #         specify the cell types to work with
 #     key_added
-#         The key added to `adata.uns['scispy']` result is saved to.
+#         The key added to `adata.uns['sparty']` result is saved to.
 #     layer
 #         sdata.table count values layer
 #     min_cells
@@ -608,92 +610,99 @@ def pseudobulk(
 #                             results_df.to_csv(save_prefix + "_" + ct + ".csv")
 #                             fig.savefig(save_prefix + "_" + ct + ".pdf", bbox_inches="tight")
     
-#     adata.uns["scispy"] = {}
-#     adata.uns["scispy"][key_added] = df_total.reset_index(drop=True)
-#     print("results stored in adata.uns['scispy']['",key_added,"']")
+#     adata.uns["sparty"] = {}
+#     adata.uns["sparty"][key_added] = df_total.reset_index(drop=True)
+#     print("results stored in adata.uns['sparty']['",key_added,"']")
 #     print("--> scis.pl.plot_pseudobulk(adata, key='",key_added,"')")
 
 
 def sdata_rotate(
     sdata: sd.SpatialData,
-    rotation_angle: int = 0,
+    rotation_angle: int = 0, # float = 0.0,
     obs_x: str = "center_x",
     obs_y: str = "center_y",
     obsm_key: str = "spatial",
+    table_key: str = 'table',
     target_coordinates: str = "microns",
-):
-    """Apply a rotation to sdata object elements + [obs_x,obs_y] sdata.table.obs + sdata.table.obsm[obsm_key]
+) -> None:
+    """
+    Apply a rotation to:
+      - all SpatialData elements (images, points, shapes)
+      - sdata[table_key].obs[[obs_x, obs_y]]
+      - sdata[table_key].obsm[obsm_key]
+
+    Rotation is performed around the origin (0,0).
 
     Parameters
     ----------
     sdata
         SpatialData object.
     rotation_angle
-        horary rotation angle
-    obs_x
-        x coordinate in sdata.table.obs
-    obs_y
-        y coordinate in sdata.table.obs
+        Rotation angle in degrees (counter-clockwise).
+    obs_x, obs_y
+        Column names in sdata.table.obs storing coordinates.
     obsm_key
-        key in sdata.table.obsm storing spatial coordinates for squidpy plots
+        Key in sdata.table.obsm storing spatial coordinates.
+    table_key
+        Key in sdata['tables'] storing anndata object.
     target_coordinates
-        target_coordinates system of sdata object
-
+        Coordinate system in which the transformation is applied.
     """
-    # 360∘ = 2π  rad
-    # 180∘ = π   rad
-    #  90∘ = π/2 rad
-    #  60∘ = π/3 rad
-    #  30∘ = π/6 rad
+    if rotation_angle == 0:
+        return
 
-    # rotate the shape along x axis
-    if rotation_angle != 0:
-        theta = math.pi / (180 / rotation_angle)
-        # perform rotation of shape
-        rotation = Affine(
-            [
-                [math.cos(theta), -math.sin(theta), 0],
-                [math.sin(theta), math.cos(theta), 0],
-                [0, 0, 1],
-            ],
-            input_axes=("x", "y"),
-            output_axes=("x", "y"),
-        )
-        # translation = Translation([0, 0], axes=("x", "y"))
-        # sequence = Sequence([rotation, translation])
+    if obs_x not in sdata[table_key].obs or obs_y not in sdata[table_key].obs:
+        raise KeyError(f"{obs_x} and/or {obs_y} not found in sdata.table.obs")
 
-        # for element in sdata._gen_elements_values():
-        #    set_transformation(element, rotation, set_all=True)
+    if obsm_key not in sdata[table_key].obsm:
+        raise KeyError(f"{obsm_key} not found in sdata.table.obsm")
 
-        elements = list(sdata.images.keys()) + list(sdata.points.keys()) + list(sdata.shapes.keys())
-        for i in range(0, len(elements)):
-            set_transformation(sdata[elements[i]], rotation, to_coordinate_system=target_coordinates)
+    theta = np.deg2rad(rotation_angle)
 
-        # synchronization for obs and squidpy coordinates
-        A = np.vstack((sdata.table.obs[obs_x], sdata.table.obs[obs_y]))
+    rotation = Affine(
+        [
+            [math.cos(theta), -math.sin(theta), 0],
+            [math.sin(theta), math.cos(theta), 0],
+            [0, 0, 1],
+        ],
+        input_axes=("x", "y"),
+        output_axes=("x", "y"),
+    )
 
-        theta = np.pi / (180 / rotation_angle)
-        rotate = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+    # center = np.array([sdata[table_key].obs[obs_x].mean(),sdata[table_key].obs[obs_y].mean(),])
+    # T_neg = Translation(-center, axes=("x", "y"))
+    # T_pos = Translation(center, axes=("x", "y"))
+    # sequence = Sequence([current, T_neg, rotation, T_pos])
 
-        # Translation vector is the mean of all xs and ys.
-        translate = A.mean(axis=1, keepdims=True)
+    # for element in sdata._gen_elements_values():
+    #    set_transformation(element, rotation, set_all=True)
 
-        out = A - translate  # Step 1
-        out = rotate @ out  # Step 2
-        out = out + translate  # Step 3
+    elements = list(sdata.images.keys()) + list(sdata.points.keys()) + list(sdata.shapes.keys())
 
-        sdata.table.obs[obs_x] = out[0]
-        sdata.table.obs[obs_y] = out[1]
-        spatial = sdata.table.obs[[obs_x, obs_y]].to_numpy()
-        sdata.table.obsm[obsm_key] = spatial
+    for i in range(0, len(elements)):
+        current = get_transformation(sdata[elements[i]])
+        sequence = Sequence([current, rotation])
+        set_transformation(sdata[elements[i]], sequence, to_coordinate_system=target_coordinates)
 
-    # convert to final coordinates
-    # sdata_out = sdata.transform_to_coordinate_system(target_coordinates)
+    # synchronization for obs and squidpy coordinates
+    coords = np.vstack((
+        sdata[table_key].obs[obs_x], 
+        sdata[table_key].obs[obs_y]))
 
-    # if 'celltypes' in list(sdata.points.keys()):
-    #    sdata_out.pl.render_points(elements='celltypes', color='celltype').pl.show(figsize=(10,4))
+    rotation_matrix = np.array([
+        [np.cos(theta), -np.sin(theta)], 
+        [np.sin(theta), np.cos(theta)]])
 
-    # return sdata_out
+    out = rotation_matrix @ coords 
+
+    # Translation vector is the mean of all xs and ys.
+    # center = coords.mean(axis=1, keepdims=True)
+    # out = rotation_matrix @ (coords - center) + center 
+
+    sdata[table_key].obs[obs_x] = out[0]
+    sdata[table_key].obs[obs_y] = out[1]
+    spatial = sdata[table_key].obs[[obs_x, obs_y]].to_numpy()
+    sdata[table_key].obsm[obsm_key] = spatial
 
 
 def sdata_querybox(
@@ -777,115 +786,6 @@ def sdata_querybox(
         return sdata_crop
 
 
-def scis_prop(
-    adata: ad.AnnData,
-    group_by: str = "scmusk_T4",
-    group_only: str = None,
-    split_by: str = "anatomy",
-    split_only: str = "",
-    split_by_top: int = 5,
-    replicate: str = "sample",
-    condition: str = "group",
-    condition_order: tuple = ["CTRL", "PAH"],  # might be possible to provide more conditions
-    test: str = "t-test_ind", #t-test_ind, t-test_welch, t-test_paired, Mann-Whitney, Mann-Whitney-gt, Mann-Whitney-ls, Levene, Wilcoxon, Kruskal, Brunner-Munzel
-    figsize: tuple = (6, 3),
-):
-    """Compute per zone celltype proportion between 2 conditions using replicate for statistical testing
-
-    Parameters
-    ----------
-    adata
-        AnnData object.
-    group_by
-        group
-    group_only
-        just plot this group
-    split_by
-        x value split_by
-    split_only
-        focus on this split_by
-    split_by_top
-        top split_by to consider
-    replicate
-        replicate key in adata.obs
-    condition
-        condition key in adata.obs
-    condition_order
-        tuple of the x conditions to test
-    test
-        statistical test to use
-    figsize
-        figure size
-    Returns
-    -------
-
-    """
-
-    #print("group_by="+group_by)
-    #sns.set_theme(style="whitegrid", palette="pastel")
-    l = list(adata.obs[group_by].unique())
-    if group_only is not None:
-        l = [group_only]
-    
-    #print(l)
-
-    for n in l:
-        print(n)
-        df = adata[adata.obs[group_by] == n].obs[[replicate, condition, split_by]]
-        df2 = df.groupby([replicate, condition, split_by])[split_by].count().unstack()
-        df2 = df2.div(df2.sum(axis=1), axis=0).reset_index()
-        df2 = df2.melt(id_vars=[replicate, condition])
-        df2 = df2.dropna()
-        df2 = df2[df2.value > 0]
-        
-        hits = list(df[split_by].value_counts().head(split_by_top).keys())
-        df2 = df2[df2[split_by].isin(hits)]
-
-        if split_only:
-            df2 = df2[df2[split_by] == split_only]
-            hits = [split_only]
-
-        split_order = hits
-
-        pairs = []
-        for s in split_order:
-            if len(df2[df2[split_by] == s][condition].unique()) > 1:
-                pairs.append([(s, condition_order[0]), (s, condition_order[1])])
-                if(len(condition_order) > 2):
-                    pairs.append([(s, condition_order[0]), (s, condition_order[2])])
-                    pairs.append([(s, condition_order[1]), (s, condition_order[2])])
-
-        hue_plot_params = {
-            "data": df2,
-            "x": split_by,
-            "y": "value",
-            "order": split_order,
-            "hue": condition,
-            "hue_order": condition_order,
-            # "palette": pal_group,
-        }
-
-        if len(pairs) > 0:
-            fig, ax = plt.subplots(1, 1, figsize=figsize)
-            sns.boxplot(ax=ax, **hue_plot_params, boxprops={"alpha": 0.8}, showfliers=False, linewidth=0.5)
-            sns.stripplot(ax=ax, **hue_plot_params, dodge=True, edgecolor="black", linewidth=0.5, size=3)
-
-            annotator = Annotator(ax, pairs, **hue_plot_params)
-            annotator.configure(test=test, text_format="star")
-            annotator.apply_and_annotate()
-
-            handles, labels = ax.get_legend_handles_labels()
-            l = plt.legend(handles[0:len(condition_order)], labels[0:len(condition_order)], bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.0)
-
-            ax.set_xticklabels(ax.get_xticklabels(), rotation=90, size=6)
-            ax.set_yticklabels(ax.get_yticklabels(), size=6)
-            ax.xaxis.grid(True)
-            ax.yaxis.grid(True)
-            ax.set(ylabel="")
-            ax.set_title(str(n))
-            plt.tight_layout()
-
-
 def fromAxisMedialToDf(
     data: sd.SpatialData | pd.DataFrame | gpd.GeoDataFrame, # NEW choice of multiple input, BEFORE only sdata
     axisMedial: shapely.LineString,
@@ -929,19 +829,22 @@ def fromAxisMedialToDf(
     
     # if group_lst == None:
     #     group_lst = list(sdata.table.obs[group_by].unique())
+    df_along["distance_along"] = shapely.line_locate_point(axisMedial, df_along.centroid)
+    # Return the distance to the line origin of given point. 
+    # If given point does not intersect with the line, the point will first be projected onto the line after which the distance is taken
 
     # find pts sur la ligne le plus proche de la cellule
-    df_along["closest_point_on_line"] = df_along.apply(
-        lambda row: shapely.ops.nearest_points(row.geometry.centroid, axisMedial)[1] , axis = 1)
-    # distance du pts start au point closest (plus proche de la cellule)
-    # ATTENTION il faut faire la distance sur la courbe
-    df_along["distance_from_start"] = df_along['closest_point_on_line'].apply(
-        lambda row: axisMedial.project(row))
-
+    # df_along["closest_point_on_line"] = df_along.apply(
+    #     lambda row: shapely.ops.nearest_points(row.geometry.centroid, axisMedial)[1] , axis = 1)
+    # # distance du pts start au point closest (plus proche de la cellule)
+    # # ATTENTION il faut faire la distance sur la courbe
+    # df_along["distance_along"] = df_along['closest_point_on_line'].apply(
+    #     lambda row: axisMedial.project(row))
+  
     # colonne distance en colonne categorie par rapport a x si distance entre 0 et 1 label 0 etc.
-    df_along['cat_along'] = pd.cut(df_along['distance_from_start'], 
+    df_along['cat_along'] = pd.cut(df_along['distance_along'], 
                              bins=x, labels=labels, right=True, include_lowest=True)
-    df_along['dst_along_norm']  = (df_along['distance_from_start'] / df_along['distance_from_start'].max()).round(3)
+    df_along['dst_along_norm']  = (df_along['distance_along'] / df_along['distance_along'].max()).round(3)
     
     if isinstance(data,sd.SpatialData):
         data[shape_key][['cat_along', 'dst_along_norm']] = df_along[['cat_along', 'dst_along_norm']]
@@ -1064,10 +967,18 @@ def orthogonalDistance(
     
     if distance == 'centroid':
         df_compute['distance_to_line'] = df_compute.centroid.distance(centerline)
-        df_compute['project_on_line'] = centerline.interpolate(centerline.project(df_compute.centroid))
+        dist_along = shapely.line_locate_point(centerline, df_compute.centroid)
+        df_compute["project_on_line"] = shapely.line_interpolate_point(centerline, dist_along)
+
+        # df_compute['distance_to_line'] = df_compute.centroid.distance(centerline)
+        # df_compute['project_on_line'] = centerline.interpolate(centerline.project(df_compute.centroid))
     elif distance == 'cell':
-        df_compute['distance_to_line'] = df_compute.distance(centerline)
-        df_compute['project_on_line'] = centerline.interpolate(centerline.project(df_compute))
+        df_compute['distance_to_line'] = df_compute.centroid.distance(centerline)
+        dist_along = shapely.line_locate_point(centerline, df_compute.centroid)
+        df_compute["project_on_line"] = shapely.line_interpolate_point(centerline, dist_along)
+
+        # df_compute['distance_to_line'] = df_compute.distance(centerline)
+        # df_compute['project_on_line'] = centerline.interpolate(centerline.project(df_compute))
     else:
         print("Distance unknown. Please select centroid or cell.")
         return

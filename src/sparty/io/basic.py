@@ -9,6 +9,7 @@ def load_merscope(
     region_name: str = "region_0",
     z_layers: int = 2,
     feature_key: str = "gene",
+    layer: str ='counts',
 ) -> sd.SpatialData:
     """Load vizgen merscope data as SpatialData object
 
@@ -37,8 +38,12 @@ def load_merscope(
     )
 
     sdata['table'].obs_names.name = None
-    sdata['table'].layers["counts"] = sdata['table'].X.copy()
+    sdata['table'].layers[layer] = sdata['table'].X.copy()
     sdata['table'].uns["spatialdata_attrs"]["feature_key"] = feature_key
+
+    # sdata['table'].uns["spatialdata_attrs"]["region"] = region
+    # sdata['table'].obs["region"] = region
+    # sdata['table'].obs["region"] = sdata['table'].obs["region"].astype('category')
 
     # if not sdata.locate_element(sdata.table.uns["spatialdata_attrs"]["region"]) == []:
     #    sdata[sdata.table.uns["spatialdata_attrs"]["region"]].index.name = None
@@ -74,6 +79,7 @@ def load_xenium(
     path: str,
     index_table: bool = True,
     region: str = "cell_boundaries",
+    layer: str ='counts',
     feature_key: str = "feature_name",
     n_jobs: int = 1,
 ) -> sd.SpatialData:
@@ -96,12 +102,14 @@ def load_xenium(
     SpatialData object
     """
     sdata = spatialdata_io.xenium(path, n_jobs = n_jobs)
-    sdata['table'].layers["counts"] = sdata['table'].X.copy()
+    sdata['table'].layers[layer] = sdata['table'].X.copy()
     sdata['table'].obs[["center_x", "center_y"]] = sdata['table'].obsm["spatial"]
     
-    sdata['table'].obs["region"] = region
     sdata['table'].uns["spatialdata_attrs"]["region"] = region
     sdata['table'].uns["spatialdata_attrs"]["feature_key"] = feature_key
+
+    sdata['table'].obs["region"] = region
+    sdata['table'].obs["region"] = sdata['table'].obs["region"].astype('category')
 
     if index_table:
         sdata['table'].obs.index = sdata['table'].obs['cell_id']
